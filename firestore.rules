@@ -1,0 +1,92 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default-deny global safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidUser(data) {
+      return data.name is string && data.name.size() > 0 && data.name.size() <= 128 &&
+             data.department is string && data.department.size() > 0 && data.department.size() <= 128;
+    }
+
+    function isValidLink(data) {
+      return data.title is string && data.title.size() > 0 && data.title.size() <= 256 &&
+             data.url is string && data.url.size() > 0 && data.url.size() <= 2048;
+    }
+
+    function isValidBooking(data) {
+      return data.roomId is string && data.roomId.size() <= 64 &&
+             data.roomName is string && data.roomName.size() <= 128 &&
+             data.dateString is string && data.dateString.size() <= 32 &&
+             data.startTime is string && data.startTime.size() <= 32 &&
+             data.endTime is string && data.endTime.size() <= 32 &&
+             data.purpose is string && data.purpose.size() <= 256 &&
+             data.bookedBy is string && data.bookedBy.size() <= 128 &&
+             data.status in ['CONFIRMED', 'UPCOMING', 'IN_SESSION', 'CANCELLED'];
+    }
+
+    function isValidHistorical(data) {
+      return data.roomName is string && data.roomName.size() <= 128 &&
+             data.date is string && data.date.size() <= 64 &&
+             data.time is string && data.time.size() <= 64 &&
+             data.purpose is string && data.purpose.size() <= 256 &&
+             data.host is string && data.host.size() <= 128 &&
+             data.duration is string && data.duration.size() <= 64 &&
+             data.status is string && data.status.size() <= 32;
+    }
+
+    // Connection test document
+    match /test/{docId} {
+      allow read: if true;
+    }
+
+    // Users collection for multi-user sign up and login
+    // Allows staff to register and sign in with Name and Department
+    match /users/{userId} {
+      allow read: if true;
+      allow create: if isValidId(userId) && isValidUser(incoming());
+      allow update: if isValidId(userId) && isValidUser(incoming());
+      allow delete: if isValidId(userId);
+    }
+
+    // System links collection (stores all current and future links)
+    match /system_links/{linkId} {
+      allow read: if true;
+      allow create: if isValidId(linkId) && isValidLink(incoming());
+      allow update: if isValidId(linkId) && isValidLink(incoming());
+      allow delete: if isValidId(linkId);
+    }
+
+    // Bookings collection
+    match /bookings/{bookingId} {
+      allow read: if true;
+      allow create: if isValidId(bookingId) && isValidBooking(incoming());
+      allow update: if isValidId(bookingId) && isValidBooking(incoming());
+      allow delete: if isValidId(bookingId);
+    }
+
+    // Historical sessions collection
+    match /historical_sessions/{sessionId} {
+      allow read: if true;
+      allow create: if isValidId(sessionId) && isValidHistorical(incoming());
+      allow update: if isValidId(sessionId) && isValidHistorical(incoming());
+      allow delete: if isValidId(sessionId);
+    }
+  }
+}

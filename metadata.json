@@ -1,0 +1,7 @@
+{
+  "name": "GHR Workspaces",
+  "description": "Enterprise room booking system and live availability scheduling desk for meeting rooms, war rooms, and workspaces.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

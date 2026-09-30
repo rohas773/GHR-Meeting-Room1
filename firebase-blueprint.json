@@ -1,0 +1,309 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Multi-user staff profile identified by name and department.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "User identifier.",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Staff full name.",
+          "maxLength": 128
+        },
+        "department": {
+          "type": "string",
+          "description": "Staff department or unit.",
+          "maxLength": 128
+        },
+        "role": {
+          "type": "string",
+          "description": "Access level or title.",
+          "maxLength": 64
+        },
+        "email": {
+          "type": "string",
+          "description": "Staff email.",
+          "maxLength": 256
+        },
+        "avatar": {
+          "type": "string",
+          "description": "Avatar initials or image URL.",
+          "maxLength": 512
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Registration timestamp.",
+          "maxLength": 64
+        },
+        "lastLoginAt": {
+          "type": "string",
+          "description": "Last login timestamp.",
+          "maxLength": 64
+        }
+      },
+      "required": ["name", "department"]
+    },
+    "SystemLink": {
+      "title": "SystemLink",
+      "description": "System links and URLs stored in Firebase.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Link identifier.",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Title or display name of the link.",
+          "maxLength": 256
+        },
+        "url": {
+          "type": "string",
+          "description": "Target destination URL.",
+          "maxLength": 2048
+        },
+        "category": {
+          "type": "string",
+          "description": "Link category.",
+          "maxLength": 64
+        },
+        "description": {
+          "type": "string",
+          "description": "Purpose or description of the link.",
+          "maxLength": 1024
+        },
+        "isCurrent": {
+          "type": "boolean",
+          "description": "Whether this represents the active application link."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp.",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Last update timestamp.",
+          "maxLength": 64
+        }
+      },
+      "required": ["title", "url"]
+    },
+    "Booking": {
+      "title": "Booking",
+      "description": "Enterprise room reservation record.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique booking identifier.",
+          "maxLength": 64
+        },
+        "roomId": {
+          "type": "string",
+          "description": "Identifier of the room.",
+          "maxLength": 64
+        },
+        "roomName": {
+          "type": "string",
+          "description": "Human-readable room name.",
+          "maxLength": 128
+        },
+        "location": {
+          "type": "string",
+          "description": "Floor and building location.",
+          "maxLength": 256
+        },
+        "date": {
+          "type": "string",
+          "description": "Display date format.",
+          "maxLength": 64
+        },
+        "dateString": {
+          "type": "string",
+          "description": "ISO date string YYYY-MM-DD.",
+          "maxLength": 32
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Slot start time.",
+          "maxLength": 32
+        },
+        "endTime": {
+          "type": "string",
+          "description": "Slot end time.",
+          "maxLength": 32
+        },
+        "duration": {
+          "type": "string",
+          "description": "Duration text.",
+          "maxLength": 64
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Subject or meeting purpose.",
+          "maxLength": 256
+        },
+        "bookedBy": {
+          "type": "string",
+          "description": "Host name.",
+          "maxLength": 128
+        },
+        "department": {
+          "type": "string",
+          "description": "Department name.",
+          "maxLength": 128
+        },
+        "status": {
+          "type": "string",
+          "description": "Booking status.",
+          "enum": ["CONFIRMED", "UPCOMING", "IN_SESSION", "CANCELLED"]
+        },
+        "urgencyBadge": {
+          "type": "string",
+          "description": "Display urgency badge.",
+          "maxLength": 64
+        },
+        "lockType": {
+          "type": "string",
+          "description": "Lock indicator type.",
+          "maxLength": 64
+        },
+        "image": {
+          "type": "string",
+          "description": "Room photo URL.",
+          "maxLength": 1024
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional AV setup instructions.",
+          "maxLength": 1024
+        },
+        "attendeesCount": {
+          "type": "number",
+          "description": "Number of meeting attendees."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Auth UID or Staff ID of the reservation owner.",
+          "maxLength": 128
+        },
+        "userEmail": {
+          "type": "string",
+          "description": "Email of the reservation owner.",
+          "maxLength": 256
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Creation timestamp.",
+          "maxLength": 64
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Update timestamp.",
+          "maxLength": 64
+        }
+      },
+      "required": [
+        "roomId",
+        "roomName",
+        "dateString",
+        "startTime",
+        "endTime",
+        "purpose",
+        "bookedBy",
+        "status"
+      ]
+    },
+    "HistoricalSession": {
+      "title": "HistoricalSession",
+      "description": "Completed session archive log.",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Archive ID.",
+          "maxLength": 64
+        },
+        "roomId": {
+          "type": "string",
+          "description": "Room ID.",
+          "maxLength": 64
+        },
+        "roomName": {
+          "type": "string",
+          "description": "Room name.",
+          "maxLength": 128
+        },
+        "date": {
+          "type": "string",
+          "description": "Display date.",
+          "maxLength": 64
+        },
+        "dateString": {
+          "type": "string",
+          "description": "Date string.",
+          "maxLength": 32
+        },
+        "time": {
+          "type": "string",
+          "description": "Time interval string.",
+          "maxLength": 64
+        },
+        "purpose": {
+          "type": "string",
+          "description": "Meeting purpose.",
+          "maxLength": 256
+        },
+        "host": {
+          "type": "string",
+          "description": "Host name.",
+          "maxLength": 128
+        },
+        "duration": {
+          "type": "string",
+          "description": "Duration text.",
+          "maxLength": 64
+        },
+        "status": {
+          "type": "string",
+          "description": "Historical status.",
+          "maxLength": 32
+        }
+      },
+      "required": [
+        "roomName",
+        "date",
+        "time",
+        "purpose",
+        "host",
+        "duration",
+        "status"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Registered staff user profiles for multi-user login and session persistence."
+    },
+    "/system_links/{linkId}": {
+      "schema": "SystemLink",
+      "description": "Persisted corporate and application links including live deployment URLs."
+    },
+    "/bookings/{bookingId}": {
+      "schema": "Booking",
+      "description": "Collection of enterprise room reservations."
+    },
+    "/historical_sessions/{sessionId}": {
+      "schema": "HistoricalSession",
+      "description": "Collection of completed and archived meeting sessions."
+    }
+  }
+}
