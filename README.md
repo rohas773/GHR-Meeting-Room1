@@ -4,7 +4,8 @@
 
 ![GHR Workspaces](https://lh3.googleusercontent.com/aida-public/AB6AXuCThCf87nBWS8Q1Yy2HtUqYeGcs0MwcGa6ann0le8Pni9A44Ize7xCGJBsmCVkAavZp1TFbnq733YF61_SfD7kLZFjGUqD-F0wsre4r8D0jAMN_bl_LsuCAZx9iVbQLeIWTLhA465kNaVBYWF51kiSwC1dpRehaicv5uYMuPbx2Si4NYDjMdcUQxs5JhZKLgbxsqHdSTyeUwGSJZLaiKq4yokckqOuz-RxC4LV1RETUdELloNVXdnVL)
 
-[![Version](https://img.shields.io/badge/version-2.6.0-emerald.svg)](https://github.com/rohas773/GHR-Meeting-Room)
+[![Version](https://img.shields.io/badge/version-2.6.0-emerald.svg)](https://github.com/rohas773/GHR-Meeting-Room1)
+[![GitHub Repository](https://img.shields.io/badge/GitHub-rohas773%2FGHR--Meeting--Room1-181717?logo=github)](https://github.com/rohas773/GHR-Meeting-Room1)
 [![Firebase](https://img.shields.io/badge/Firebase-Firestore%20%26%20Auth-amber.svg)](https://firebase.google.com/)
 [![React](https://img.shields.io/badge/React-19.0-blue.svg)](https://react.dev)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
@@ -25,6 +26,7 @@ All live endpoints are persisted and managed directly within the Firebase `/syst
 
 | Endpoint Type | Description | URL |
 | :--- | :--- | :--- |
+| **GitHub Repository** | Official project source code repository | [`https://github.com/rohas773/GHR-Meeting-Room1`](https://github.com/rohas773/GHR-Meeting-Room1) |
 | **Development App** | Real-time containerized development environment | `https://ais-dev-7l757wx7zep4bz7dzis4ri-367744798312.asia-southeast1.run.app` |
 | **Shared Preview** | Public stakeholder preview deployment | `https://ais-pre-7l757wx7zep4bz7dzis4ri-367744798312.asia-southeast1.run.app` |
 | **Calendar iCal Feed** | RFC 5545 auto-updating iCalendar subscription feed | `https://workspaces.ghr-corp.internal/v2/cal/feed-budi.santoso@ghr.corp.ics` |
@@ -178,8 +180,8 @@ npm -v
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/rohas773/GHR-Meeting-Room.git
-   cd GHR-Meeting-Room
+   git clone https://github.com/rohas773/GHR-Meeting-Room1.git
+   cd GHR-Meeting-Room1
    ```
 
 2. Install dependencies:

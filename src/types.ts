@@ -127,9 +127,18 @@ export const INITIAL_USERS: UserProfile[] = [
 
 export const INITIAL_SYSTEM_LINKS: SystemLink[] = [
   {
+    id: 'link_github_repo',
+    title: 'GitHub Source Repository',
+    url: 'https://github.com/rohas773/GHR-Meeting-Room1',
+    category: 'Resource',
+    description: 'Official GitHub repository for GHR Workspaces meeting room system.',
+    isCurrent: true,
+    createdAt: new Date().toISOString()
+  },
+  {
     id: 'link_dev_app',
     title: 'Development App URL',
-    url: 'https://ais-dev-6uq7gwyj2bbjg7ehgbxd77-183154733016.asia-southeast1.run.app',
+    url: 'https://ais-dev-7l757wx7zep4bz7dzis4ri-367744798312.asia-southeast1.run.app',
     category: 'App',
     description: 'Active live development environment with real-time dev server.',
     isCurrent: true,
@@ -138,7 +147,7 @@ export const INITIAL_SYSTEM_LINKS: SystemLink[] = [
   {
     id: 'link_shared_app',
     title: 'Shared Production Preview URL',
-    url: 'https://ais-pre-6uq7gwyj2bbjg7ehgbxd77-183154733016.asia-southeast1.run.app',
+    url: 'https://ais-pre-7l757wx7zep4bz7dzis4ri-367744798312.asia-southeast1.run.app',
     category: 'Shared',
     description: 'Public preview deployment URL for stakeholder & room tablet usage.',
     isCurrent: true,
