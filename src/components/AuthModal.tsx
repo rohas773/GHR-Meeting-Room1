@@ -61,7 +61,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !department.trim()) {
-      setErrorMsg('Sila masukkan Nama Penuh dan Jabatan.');
+      setErrorMsg('Please enter your Full Name and Department.');
       return;
     }
 
@@ -79,8 +79,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error('Auth error:', err);
-      const detailed = err?.message || 'Sila semak sambungan internet atau tetapan Firebase.';
-      setErrorMsg(`Ralat Firebase: ${detailed}`);
+      const detailed = err?.message || 'Please check your internet connection or Firebase configuration.';
+      setErrorMsg(`Firebase Error: ${detailed}`);
     } finally {
       setIsLoading(false);
     }
@@ -113,11 +113,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </div>
             <div className="flex flex-col">
               <h3 className="font-['Plus_Jakarta_Sans'] text-lg font-bold text-[#0b1c30]">
-                {mode === 'signup' ? 'Daftar Pengguna Baharu (Sign Up)' : 'Log Masuk Staf (Sign In)'}
+                {mode === 'signup' ? 'Register New Staff Profile (Sign Up)' : 'Staff Sign In'}
               </h3>
               <span className="text-[12px] text-[#006a61] font-medium flex items-center gap-1">
                 <span className="w-2 h-2 rounded-full bg-[#006a61] animate-pulse"></span>
-                Semua pendaftaran dimasukkan terus ke Firebase Firestore (/users)
+                Profiles are saved directly to Firebase Firestore (/users)
               </span>
             </div>
           </div>
@@ -143,7 +143,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     {currentStaff.name}
                   </span>
                   <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#86f2e4] text-[#006f66]">
-                    Sedang Aktif
+                    Currently Active
                   </span>
                 </div>
                 <span className="text-[11px] text-[#45464d] truncate">
@@ -157,7 +157,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
               className="px-3 py-1.5 bg-white hover:bg-[#ffdad6] text-[#ba1a1a] rounded-lg text-[12px] font-semibold border border-[#ffdad6] transition-colors shrink-0 flex items-center gap-1"
             >
               <span className="material-symbols-outlined text-[14px]">logout</span>
-              <span>Tukar Akaun</span>
+              <span>Switch Account</span>
             </button>
           </div>
         )}
@@ -174,7 +174,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }`}
           >
             <span className="material-symbols-outlined text-[16px]">person_add</span>
-            <span>Daftar Pengguna Baharu (Sign Up)</span>
+            <span>Register New Staff (Sign Up)</span>
           </button>
           <button
             type="button"
@@ -186,7 +186,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             }`}
           >
             <span className="material-symbols-outlined text-[16px]">login</span>
-            <span>Log Masuk (Nama & Jabatan)</span>
+            <span>Sign In (Name & Department)</span>
           </button>
         </div>
 
@@ -198,13 +198,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <div className="flex flex-col">
             <span className="font-bold">
               {mode === 'signup' 
-                ? 'Pendaftaran Terus ke Firebase Cloud' 
-                : 'Penyegerakan Staf Masa Nyata'}
+                ? 'Direct Firebase Cloud Registration' 
+                : 'Real-Time Staff Synchronization'}
             </span>
             <span className="text-[11px] leading-relaxed">
               {mode === 'signup'
-                ? 'Setiap pengguna yang didaftarkan akan terus dicipta sebagai dokumen di koleksi Firestore /users dan boleh diakses merentas semua peranti.'
-                : 'Hanya masukkan nama dan jabatan anda untuk menyambung ke rekod Firestore yang sedia ada.'}
+                ? 'Every registered profile is saved directly as a document in the /users Firestore collection and accessible across all devices.'
+                : 'Simply enter your name and department to connect to your existing Firestore profile.'}
             </span>
           </div>
         </div>
@@ -221,15 +221,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* Full Name */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-[#0b1c30] flex items-center justify-between">
-              <span>Nama Penuh Staf (Full Name)</span>
-              <span className="text-[11px] text-[#006a61] font-normal">Wajib diisi</span>
+              <span>Full Name</span>
+              <span className="text-[11px] text-[#006a61] font-normal">Required</span>
             </label>
             <input 
               type="text"
               required
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="cth: Khairul Azman / Nurul Izzah"
+              placeholder="e.g. Khairul Azman / Nurul Izzah"
               className="w-full px-3.5 py-2.5 rounded-lg bg-[#eff4ff] border border-[#dce9ff] text-sm text-[#0b1c30] focus:outline-none focus:bg-white focus:border-[#006a61] transition-all"
             />
           </div>
@@ -237,15 +237,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {/* Department */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-[#0b1c30] flex items-center justify-between">
-              <span>Jabatan / Department</span>
-              <span className="text-[11px] text-[#006a61] font-normal">Wajib diisi</span>
+              <span>Department</span>
+              <span className="text-[11px] text-[#006a61] font-normal">Required</span>
             </label>
             <input 
               type="text"
               required
               value={department}
               onChange={(e) => setDepartment(e.target.value)}
-              placeholder="cth: Engineering & Technology / Corporate Strategy"
+              placeholder="e.g. Engineering & Technology / Corporate Strategy"
               className="w-full px-3.5 py-2.5 rounded-lg bg-[#eff4ff] border border-[#dce9ff] text-sm text-[#0b1c30] focus:outline-none focus:bg-white focus:border-[#006a61] transition-all"
             />
             {/* Quick department chip suggestions */}
@@ -268,7 +268,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
               <div className="flex flex-col gap-1.5">
                 <label className="text-[12px] font-semibold text-[#0b1c30]">
-                  Jawatan / Peranan (Role)
+                  Role / Position
                 </label>
                 <select
                   value={role}
@@ -283,13 +283,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
               <div className="flex flex-col gap-1.5">
                 <label className="text-[12px] font-semibold text-[#0b1c30]">
-                  Emel Korporat
+                  Corporate Email
                 </label>
                 <input 
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="nama@mediaprima.com.my"
+                  placeholder="name@mediaprima.com.my"
                   className="w-full px-3 py-2 rounded-lg bg-[#eff4ff] border border-[#dce9ff] text-xs text-[#0b1c30] focus:outline-none"
                 />
               </div>
@@ -306,10 +306,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             </span>
             <span>
               {isLoading 
-                ? 'Menyimpan ke Firebase...' 
+                ? 'Saving to Firebase...' 
                 : mode === 'signup' 
-                  ? 'Daftar Pengguna Baharu ke Firebase' 
-                  : 'Log Masuk ke Sistem'}
+                  ? 'Register Profile to Firebase' 
+                  : 'Sign In to Workspace'}
             </span>
           </button>
         </form>
@@ -318,7 +318,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="flex flex-col gap-2 pt-3 border-t border-[#e2e8f0]">
           <div className="flex items-center justify-between">
             <span className="text-[11px] uppercase font-bold text-[#45464d] tracking-wider">
-              Staf Berdaftar Dalam Firebase ({allStaff.length})
+              Registered Staff in Firebase ({allStaff.length})
             </span>
             <span className="text-[11px] text-[#006a61] font-semibold flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[#006a61]"></span>
@@ -339,7 +339,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                       ? 'border-[#006a61] bg-[#86f2e4]/15 ring-1 ring-[#006a61]'
                       : 'border-[#e2e8f0] bg-white hover:bg-[#eff4ff]'
                   }`}
-                  title="Klik untuk log masuk sebagai staf ini"
+                  title="Click to sign in as this staff member"
                 >
                   <div className="w-8 h-8 rounded-full bg-[#131b2e] text-white flex items-center justify-center text-xs font-bold shrink-0">
                     {staff.avatar || staff.name.slice(0, 2).toUpperCase()}
@@ -359,7 +359,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </div>
 
         <div className="text-[11px] text-[#45464d] text-center pt-1 border-t border-[#e2e8f0]">
-          Pangkalan Data Firebase asia-southeast1 &bull; Koleksi: <span className="font-mono text-[#006a61]">/users</span>
+          Firebase Database asia-southeast1 &bull; Collection: <span className="font-mono text-[#006a61]">/users</span>
         </div>
       </div>
     </div>

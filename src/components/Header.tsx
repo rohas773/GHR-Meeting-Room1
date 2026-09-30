@@ -85,7 +85,7 @@ export const Header: React.FC<HeaderProps> = ({
                 : 'text-[#45464d] hover:text-[#0b1c30] hover:bg-[#dce9ff]/50'
             }`}
           >
-            <span>My Bookings</span>
+            <span>Bookings & Schedule</span>
             {bookingCount > 0 && (
               <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-bold ${
                 activeTab === 'my-bookings' 
@@ -115,10 +115,10 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             onClick={onOpenLinks}
             className="px-2.5 py-1.5 rounded-lg bg-[#eff4ff] hover:bg-[#dce9ff] text-[#006a61] text-xs font-semibold flex items-center gap-1.5 transition-colors border border-[#dce9ff]/70 shadow-2xs"
-            title="Lihat & Urus Semua Pautan Dalam Firebase"
+            title="View & Manage All System Links in Firebase"
           >
             <span className="material-symbols-outlined text-[16px]">link</span>
-            <span className="hidden sm:inline">Pautan Firebase</span>
+            <span className="hidden sm:inline">Firebase Links</span>
             <span className="px-1.5 py-0.2 rounded-full text-[10px] bg-[#006a61] text-white font-bold">
               {linksCount}
             </span>
@@ -128,7 +128,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div 
             onClick={onOpenAuth || onUserClick}
             className="flex items-center gap-2.5 pl-1 sm:pl-2 cursor-pointer group" 
-            title="Klik untuk Tukar Pengguna atau Log Masuk Staf"
+            title="Click to Switch User or Staff Sign In"
           >
             <div className="hidden sm:flex flex-col text-right">
               <span className="text-[13px] text-[#0b1c30] font-semibold leading-tight group-hover:text-[#006a61] transition-colors truncate max-w-[140px]">
@@ -158,10 +158,10 @@ export const Header: React.FC<HeaderProps> = ({
           <button 
             onClick={onOpenAuth}
             className="p-1.5 rounded-lg text-[#45464d] hover:text-[#006a61] hover:bg-[#eff4ff] transition-colors flex items-center gap-1"
-            title="Log Masuk / Daftar Staf (Multiuser)"
+            title="Sign In / Register Staff (Multi-user)"
           >
             <span className="material-symbols-outlined text-[20px]">swap_horiz</span>
-            <span className="hidden md:inline text-[11px] font-semibold">Tukar</span>
+            <span className="hidden md:inline text-[11px] font-semibold">Switch</span>
           </button>
         </div>
       </div>

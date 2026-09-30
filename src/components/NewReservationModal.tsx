@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Room, Booking, UserProfile } from '../types';
+import { validateBookingConflict } from '../utils/bookingValidation';
 
 interface NewReservationModalProps {
   rooms: Room[];
+  existingBookings: Booking[];
   selectedRoomId?: string;
   defaultDate?: string;
   defaultTime?: string;
@@ -26,6 +28,7 @@ const DURATION_OPTIONS = [
 
 export const NewReservationModal: React.FC<NewReservationModalProps> = ({
   rooms,
+  existingBookings,
   selectedRoomId,
   defaultDate,
   defaultTime,
@@ -43,6 +46,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
   const [department, setDepartment] = useState(staffUser?.department || 'People & Operations');
   const [attendeesCount, setAttendeesCount] = useState(6);
   const [notes, setNotes] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (staffUser) {
@@ -55,10 +59,8 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
     if (selectedRoomId) setRoomId(selectedRoomId);
     if (defaultDate) setDateString(defaultDate);
     if (defaultTime) setStartTime(defaultTime);
+    setErrorMessage(null);
   }, [selectedRoomId, defaultDate, defaultTime, isOpen]);
-
-
-  if (!isOpen) return null;
 
   const currentRoom = rooms.find((r) => r.id === roomId) || rooms[0];
 
@@ -85,9 +87,43 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
     return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')} ${endPeriod}`;
   };
 
+  const calculatedEndTime = useMemo(() => {
+    return calculateEndTime(startTime, duration);
+  }, [startTime, duration]);
+
+  // Real-time conflict validation
+  const conflictResult = useMemo(() => {
+    return validateBookingConflict(existingBookings, {
+      roomId,
+      dateString,
+      startTime,
+      endTime: calculatedEndTime
+    });
+  }, [existingBookings, roomId, dateString, startTime, calculatedEndTime]);
+
+  if (!isOpen) return null;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!purpose.trim()) return;
+    if (!purpose.trim()) {
+      setErrorMessage('Please enter the meeting purpose or title.');
+      return;
+    }
+
+    // STRICT REJECTION: Reject if booking slot conflicts with existing booking
+    const check = validateBookingConflict(existingBookings, {
+      roomId: currentRoom.id,
+      dateString,
+      startTime,
+      endTime: calculatedEndTime
+    });
+
+    if (check.hasConflict && check.conflictingBooking) {
+      setErrorMessage(
+        `BOOKING REJECTED: Room '${currentRoom.name}' is already booked on ${dateString} (${check.conflictingBooking.startTime} - ${check.conflictingBooking.endTime}) by ${check.conflictingBooking.bookedBy} (${check.conflictingBooking.department}) for "${check.conflictingBooking.purpose}". Please select another time or room.`
+      );
+      return;
+    }
 
     // Calculate formatted date
     const d = new Date(dateString + 'T00:00:00');
@@ -106,7 +142,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
       date: friendlyDate,
       dateString: dateString,
       startTime: startTime,
-      endTime: calculateEndTime(startTime, duration),
+      endTime: calculatedEndTime,
       duration: duration,
       purpose: purpose.trim(),
       bookedBy: bookedBy.trim(),
@@ -137,10 +173,10 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             </div>
             <div className="flex flex-col">
               <h3 className="font-['Plus_Jakarta_Sans'] text-xl font-bold text-[#0b1c30]">
-                New Workspace Reservation
+                New Room Reservation
               </h3>
               <span className="text-[12px] text-[#45464d]">
-                Instant enterprise reservation with live panel synchronization
+                Automatic availability check & slot conflict prevention
               </span>
             </div>
           </div>
@@ -153,37 +189,98 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
           </button>
         </div>
 
+        {/* HIGH-PRIORITY REJECTION BANNER WHEN CONFLICT DETECTED */}
+        {conflictResult.hasConflict && conflictResult.conflictingBooking && (
+          <div className="p-4 bg-red-50 border-2 border-red-300 rounded-xl flex items-start gap-3.5 text-red-950 animate-in fade-in duration-200">
+            <div className="w-9 h-9 rounded-lg bg-red-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+              <span className="material-symbols-outlined text-[20px]">block</span>
+            </div>
+            <div className="flex flex-col gap-1 text-xs">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded font-bold text-[10px] bg-red-600 text-white uppercase tracking-wider">
+                  Booking Rejected &bull; Slot Overlap
+                </span>
+                <span className="font-semibold text-red-900">
+                  {dateString} ({startTime} – {calculatedEndTime})
+                </span>
+              </div>
+              <p className="text-red-900 text-[13px] leading-snug mt-0.5">
+                Room <strong>{currentRoom.name}</strong> is already booked by <strong>{conflictResult.conflictingBooking.bookedBy}</strong> ({conflictResult.conflictingBooking.department}) from <strong>{conflictResult.conflictingBooking.startTime} to {conflictResult.conflictingBooking.endTime}</strong>.
+              </p>
+              <div className="text-red-800 text-[12px] bg-red-100/70 p-2 rounded-lg mt-1 border border-red-200/80">
+                <strong>Existing Meeting Purpose:</strong> "{conflictResult.conflictingBooking.purpose}"
+              </div>
+              <span className="text-red-700 font-semibold text-[11px] mt-0.5">
+                ⚠️ You cannot reserve this slot. Please choose another time or select a different room below.
+              </span>
+            </div>
+          </div>
+        )}
+
+        {errorMessage && !conflictResult.hasConflict && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700 font-medium">
+            {errorMessage}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {/* Room Selection */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-[#0b1c30]">
-              Select Room Venue
+              Select Meeting Room
             </label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {rooms.map((room) => {
                 const isSelected = room.id === roomId;
+                // Check if this room has conflict at selected time
+                const hasRoomConflict = validateBookingConflict(existingBookings, {
+                  roomId: room.id,
+                  dateString,
+                  startTime,
+                  endTime: calculatedEndTime
+                }).hasConflict;
+
                 return (
                   <div
                     key={room.id}
-                    onClick={() => setRoomId(room.id)}
-                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center gap-3 ${
+                    onClick={() => {
+                      setRoomId(room.id);
+                      setErrorMessage(null);
+                    }}
+                    className={`p-3 rounded-xl border cursor-pointer transition-all flex items-center justify-between gap-3 ${
                       isSelected
-                        ? 'border-[#006a61] bg-[#eff4ff] ring-1 ring-[#006a61]'
+                        ? hasRoomConflict
+                          ? 'border-red-400 bg-red-50/50 ring-1 ring-red-400'
+                          : 'border-[#006a61] bg-[#eff4ff] ring-1 ring-[#006a61]'
                         : 'border-[#e2e8f0] hover:border-[#cbdbf5] bg-white'
                     }`}
                   >
-                    <img 
-                      src={room.image} 
-                      alt={room.name} 
-                      className="w-12 h-12 rounded-lg object-cover shadow-sm shrink-0" 
-                    />
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[13px] font-semibold text-[#0b1c30] truncate">
-                        {room.name}
-                      </span>
-                      <span className="text-[11px] text-[#45464d]">
-                        {room.floor} • Cap: {room.capacity}
-                      </span>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <img 
+                        src={room.image} 
+                        alt={room.name} 
+                        className="w-12 h-12 rounded-lg object-cover shadow-sm shrink-0" 
+                      />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[13px] font-semibold text-[#0b1c30] truncate">
+                          {room.name}
+                        </span>
+                        <span className="text-[11px] text-[#45464d]">
+                          {room.floor} • Cap: {room.capacity}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      {hasRoomConflict ? (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700 border border-red-200">
+                          Conflict
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#e6f4ea] text-[#137333] border border-[#ceead6]">
+                          Available
+                        </span>
+                      )}
                     </div>
                   </div>
                 );
@@ -194,15 +291,18 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
           {/* Meeting Purpose */}
           <div className="flex flex-col gap-1.5">
             <label className="text-[13px] font-semibold text-[#0b1c30] flex items-center justify-between">
-              <span>Purpose / Meeting Subject</span>
-              <span className="text-[11px] text-[#006a61] font-normal">Displayed on outside room door panel</span>
+              <span>Meeting Purpose / Subject</span>
+              <span className="text-[11px] text-[#006a61] font-normal">Displayed on room door panels</span>
             </label>
             <input 
               type="text"
               required
               value={purpose}
-              onChange={(e) => setPurpose(e.target.value)}
-              placeholder="e.g. Q4 Executive Review, Product Design Sprint"
+              onChange={(e) => {
+                setPurpose(e.target.value);
+                setErrorMessage(null);
+              }}
+              placeholder="e.g. Sprint Planning, Q4 Budget Review, Board Meeting"
               className="w-full px-3.5 py-2 rounded-lg bg-[#eff4ff] border border-[#dce9ff] text-sm text-[#0b1c30] focus:outline-none focus:bg-white focus:border-[#006a61] transition-all"
             />
           </div>
@@ -217,18 +317,24 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
                 type="date"
                 required
                 value={dateString}
-                onChange={(e) => setDateString(e.target.value)}
+                onChange={(e) => {
+                  setDateString(e.target.value);
+                  setErrorMessage(null);
+                }}
                 className="w-full px-3 py-2 rounded-lg bg-[#eff4ff] border border-[#dce9ff] text-sm text-[#0b1c30] focus:outline-none focus:bg-white focus:border-[#006a61]"
               />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-semibold text-[#0b1c30]">
-                Start Time
+              <label className="text-[13px] font-semibold text-[#0b1c30] flex items-center justify-between">
+                <span>Start Time</span>
               </label>
               <select
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={(e) => {
+                  setStartTime(e.target.value);
+                  setErrorMessage(null);
+                }}
                 className="w-full px-3 py-2 rounded-lg bg-[#eff4ff] border border-[#dce9ff] text-sm text-[#0b1c30] focus:outline-none focus:bg-white focus:border-[#006a61]"
               >
                 {TIME_OPTIONS.map((t) => (
@@ -238,12 +344,16 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[13px] font-semibold text-[#0b1c30]">
-                Duration
+              <label className="text-[13px] font-semibold text-[#0b1c30] flex items-center justify-between">
+                <span>Duration</span>
+                <span className="text-[11px] text-[#45464d] font-normal">Ends: {calculatedEndTime}</span>
               </label>
               <select
                 value={duration}
-                onChange={(e) => setDuration(e.target.value)}
+                onChange={(e) => {
+                  setDuration(e.target.value);
+                  setErrorMessage(null);
+                }}
                 className="w-full px-3 py-2 rounded-lg bg-[#eff4ff] border border-[#dce9ff] text-sm text-[#0b1c30] focus:outline-none focus:bg-white focus:border-[#006a61]"
               >
                 {DURATION_OPTIONS.map((d) => (
@@ -270,7 +380,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
 
             <div className="flex flex-col gap-1.5">
               <label className="text-[13px] font-semibold text-[#0b1c30]">
-                Department
+                Department / Division
               </label>
               <input 
                 type="text"
@@ -283,7 +393,7 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
 
             <div className="flex flex-col gap-1.5">
               <label className="text-[13px] font-semibold text-[#0b1c30]">
-                Pax Attendees
+                Expected Attendees (Pax)
               </label>
               <input 
                 type="number"
@@ -296,11 +406,36 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
             </div>
           </div>
 
+          {/* Notes */}
+          <div className="flex flex-col gap-1.5">
+            <label className="text-[13px] font-semibold text-[#0b1c30]">
+              Additional Notes (Optional)
+            </label>
+            <input 
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g. Need HDMI cable, wireless microphones, whiteboard markers..."
+              className="w-full px-3.5 py-2 rounded-lg bg-[#eff4ff] border border-[#dce9ff] text-sm text-[#0b1c30] focus:outline-none focus:bg-white focus:border-[#006a61]"
+            />
+          </div>
+
+          {/* Footer buttons */}
           <div className="flex items-center justify-between pt-3 border-t border-[#e2e8f0]">
-            <div className="flex items-center gap-2 text-[12px] text-[#45464d]">
-              <span className="w-2 h-2 rounded-full bg-[#006a61]"></span>
-              <span>Available for reservation</span>
+            <div className="flex items-center gap-2 text-[12px]">
+              {conflictResult.hasConflict ? (
+                <span className="flex items-center gap-1.5 text-red-600 font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-red-600"></span>
+                  Slot unavailable (Conflict detected)
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 text-[#006a61] font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-[#006a61]"></span>
+                  Slot verified & available for booking
+                </span>
+              )}
             </div>
+
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -311,10 +446,20 @@ export const NewReservationModal: React.FC<NewReservationModalProps> = ({
               </button>
               <button
                 type="submit"
-                className="px-5 py-2.5 bg-[#000000] text-white hover:bg-[#131b2e] rounded-xl text-sm font-semibold shadow-md transition-all flex items-center gap-2"
+                disabled={conflictResult.hasConflict}
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold transition-all flex items-center gap-2 ${
+                  conflictResult.hasConflict
+                    ? 'bg-red-200 text-red-800 cursor-not-allowed border border-red-300'
+                    : 'bg-[#000000] text-white hover:bg-[#131b2e] shadow-md cursor-pointer'
+                }`}
+                title={conflictResult.hasConflict ? 'Booking rejected due to conflict' : 'Confirm reservation'}
               >
-                <span className="material-symbols-outlined text-[18px]">check_circle</span>
-                <span>Confirm Reservation</span>
+                <span className="material-symbols-outlined text-[18px]">
+                  {conflictResult.hasConflict ? 'block' : 'check_circle'}
+                </span>
+                <span>
+                  {conflictResult.hasConflict ? 'Slot Conflict (Rejected)' : 'Confirm Booking'}
+                </span>
               </button>
             </div>
           </div>

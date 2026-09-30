@@ -76,12 +76,12 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
       const result = await signInWithGoogleCalendar();
       if (result?.accessToken) {
         setIsConnected(true);
-        onToast('Google Calendar Disambungkan!', `Akaun: ${result.user.email || result.user.displayName}`);
+        onToast('Google Calendar Connected!', `Account: ${result.user.email || result.user.displayName}`);
         await loadLiveGoogleEvents(result.accessToken);
       }
     } catch (err: any) {
       console.error('Google Calendar connect error:', err);
-      onToast('Gagal menyambung ke Google Calendar', err.message || 'Sila cuba lagi');
+      onToast('Failed to connect Google Calendar', err.message || 'Please try again');
     } finally {
       setIsConnecting(false);
     }
@@ -91,7 +91,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
     setCalendarAccessToken(null);
     setIsConnected(false);
     setGoogleCalendarEvents([]);
-    onToast('Google Calendar diputuskan sambungan.');
+    onToast('Google Calendar disconnected.');
   };
 
   // Sync a single booking into Google Calendar
@@ -104,7 +104,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
         if (!token) return;
         setIsConnected(true);
       } catch (e: any) {
-        onToast('Kebenaran Google Calendar diperlukan', e.message);
+        onToast('Google Calendar permission required', e.message);
         return;
       }
     }
@@ -125,11 +125,11 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
         });
       }
 
-      onToast('Tempahan Berjaya Dimasukkan ke Google Calendar!', `${booking.purpose} (${booking.roomName})`);
+      onToast('Booking Synced to Google Calendar!', `${booking.purpose} (${booking.roomName})`);
       loadLiveGoogleEvents(token);
     } catch (err: any) {
       console.error('Sync failed:', err);
-      onToast('Gagal menyegerak ke Google Calendar', err.message);
+      onToast('Failed to sync with Google Calendar', err.message);
     } finally {
       setSyncingId(null);
     }
@@ -145,7 +145,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
         if (!token) return;
         setIsConnected(true);
       } catch (e: any) {
-        onToast('Kebenaran Google Calendar diperlukan', e.message);
+        onToast('Google Calendar permission required', e.message);
         return;
       }
     }
@@ -174,10 +174,10 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
           }
         }
       }
-      onToast(`${successCount} tempahan berjaya disegerakkan ke Google Calendar!`);
+      onToast(`${successCount} bookings successfully synced to Google Calendar!`);
       loadLiveGoogleEvents(token);
     } catch (err: any) {
-      onToast('Ralat semasa menyegerakkan semua tempahan', err.message);
+      onToast('Error syncing bookings', err.message);
     } finally {
       setIsSyncingAll(false);
     }
@@ -190,7 +190,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
     if (!eventId) return;
 
     const confirmed = window.confirm(
-      `Padamkan acara "${booking.purpose}" daripada Google Calendar anda?\nTindakan ini akan membuang acara dari kalendar peribadi Google anda.`
+      `Remove event "${booking.purpose}" from your Google Calendar?\nThis will remove the event from your Google calendar.`
     );
     if (!confirmed) return;
 
@@ -208,11 +208,11 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
           isSyncedToGoogle: false
         });
       }
-      onToast('Acara telah dipadamkan daripada Google Calendar.');
+      onToast('Event removed from Google Calendar.');
       const token = await getCalendarAccessToken();
       if (token) loadLiveGoogleEvents(token);
     } catch (err: any) {
-      onToast('Gagal memadam acara daripada Google Calendar', err.message);
+      onToast('Failed to delete event from Google Calendar', err.message);
     }
   };
 
@@ -220,14 +220,14 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
     navigator.clipboard?.writeText(feedUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
-    onToast('Pautan iCal Feed disalin ke papan klip');
+    onToast('iCal Feed URL copied to clipboard');
   };
 
   const handleDownloadAllIcs = () => {
     bookings.forEach((b) => {
       downloadIcsFile(b);
     });
-    onToast(`Mengeksport ${bookings.length} tempahan ke fail .ics`);
+    onToast(`Exporting ${bookings.length} reservations to .ics files`);
   };
 
   return (
@@ -245,10 +245,10 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
             </div>
             <div className="flex flex-col">
               <h3 className="font-['Plus_Jakarta_Sans'] text-lg font-bold text-[#0b1c30]">
-                Integrasi Google Calendar
+                Google Calendar Integration
               </h3>
               <span className="text-[12px] text-[#45464d]">
-                Segerakkan tempahan bilik mesyuarat secara terus ke akaun Google anda
+                Sync meeting room reservations directly with your Google account
               </span>
             </div>
           </div>
@@ -291,7 +291,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
             }`}
           >
             <span className="material-symbols-outlined text-[16px]">feed</span>
-            <span>Outlook / Fail .ics</span>
+            <span>Outlook / .ics Feed</span>
           </button>
         </div>
 
@@ -312,10 +312,10 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                   </div>
                   <div className="flex flex-col">
                     <span className="font-bold text-sm text-[#0b1c30]">
-                      Sambungkan Google Calendar Anda
+                      Connect Your Google Calendar
                     </span>
                     <span className="text-xs text-[#45464d] leading-relaxed mt-0.5">
-                      Segerakkan semua tempahan bilik mesyuarat terus ke Google Calendar rasmi anda secara automatik dengan kebenaran OAuth Google Workspace.
+                      Automatically sync meeting room reservations directly to your Google Calendar with Google Workspace OAuth.
                     </span>
                   </div>
                 </div>
@@ -332,7 +332,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                     <path fill="#FBBC05" d="M5.28 14.27c-.25-.72-.38-1.49-.38-2.27s.13-1.55.38-2.27V6.58H1.25C.45 8.18 0 9.99 0 12s.45 3.82 1.25 5.42l4.03-3.15Z"/>
                     <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.26 2.64 1.25 6.58l4.03 3.15c.95-2.83 3.6-4.98 6.72-4.98Z"/>
                   </svg>
-                  <span>{isConnecting ? 'Menyambung ke Google...' : 'Sign in with Google / Sambung Google Calendar'}</span>
+                  <span>{isConnecting ? 'Connecting to Google...' : 'Sign in with Google / Connect Google Calendar'}</span>
                 </button>
               </div>
             ) : (
@@ -343,7 +343,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                   </div>
                   <div className="flex flex-col min-w-0">
                     <div className="flex items-center gap-1.5">
-                      <span className="font-bold text-xs text-[#0d652d]">Google Calendar Disambung</span>
+                      <span className="font-bold text-xs text-[#0d652d]">Google Calendar Connected</span>
                       <span className="w-2 h-2 rounded-full bg-[#188038] animate-pulse"></span>
                     </div>
                     <span className="text-xs text-[#3c4043] font-medium truncate">
@@ -360,13 +360,13 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                     className="px-3.5 py-1.5 bg-[#188038] hover:bg-[#137333] text-white rounded-lg text-xs font-semibold transition-colors shadow-xs flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
                   >
                     <span className="material-symbols-outlined text-[16px]">sync</span>
-                    <span>{isSyncingAll ? 'Menyegerak...' : 'Segerak Semua'}</span>
+                    <span>{isSyncingAll ? 'Syncing...' : 'Sync All'}</span>
                   </button>
                   <button
                     type="button"
                     onClick={handleDisconnect}
                     className="p-1.5 text-[#5f6368] hover:text-[#d93025] hover:bg-white rounded-lg transition-colors border border-transparent hover:border-[#d93025]/30"
-                    title="Putuskan sambungan kalendar"
+                    title="Disconnect Google Calendar"
                   >
                     <span className="material-symbols-outlined text-[18px]">link_off</span>
                   </button>
@@ -378,7 +378,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#45464d]">
-                  Tempahan Anda ({bookings.length})
+                  Your Reservations ({bookings.length})
                 </span>
                 <span className="text-[11px] text-[#1a73e8] font-semibold">
                   Google Calendar Real-Time Sync
@@ -419,16 +419,16 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                               target="_blank"
                               rel="noopener noreferrer"
                               className="px-2.5 py-1 bg-[#e6f4ea] hover:bg-[#ceead6] text-[#137333] rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
-                              title="Buka dalam Google Calendar"
+                              title="Open in Google Calendar"
                             >
                               <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                              <span>Buka Google Calendar</span>
+                              <span>Open Google Calendar</span>
                             </a>
                             <button
                               type="button"
                               onClick={() => handleDeleteFromGoogleCalendar(booking)}
                               className="p-1 text-[#ba1a1a] hover:bg-[#ffdad6] rounded-md transition-colors"
-                              title="Padam dari Google Calendar"
+                              title="Remove from Google Calendar"
                             >
                               <span className="material-symbols-outlined text-[16px]">delete</span>
                             </button>
@@ -443,7 +443,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                             <span className="material-symbols-outlined text-[14px]">
                               {isSyncingThis ? 'hourglass_top' : 'add'}
                             </span>
-                            <span>{isSyncingThis ? 'Menyegerak...' : 'Masuk Google Cal'}</span>
+                            <span>{isSyncingThis ? 'Syncing...' : 'Add to Google Cal'}</span>
                           </button>
                         )}
                       </div>
@@ -458,7 +458,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
               <div className="flex flex-col gap-2 pt-2 border-t border-[#e2e8f0]">
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider text-[#45464d]">
-                    Acara Semasa Dalam Google Calendar Anda
+                    Current Events in Your Google Calendar
                   </span>
                   <button
                     type="button"
@@ -466,17 +466,17 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                     className="text-[11px] text-[#1a73e8] hover:underline flex items-center gap-1"
                   >
                     <span className="material-symbols-outlined text-[14px]">refresh</span>
-                    <span>Muat Semula</span>
+                    <span>Refresh</span>
                   </button>
                 </div>
 
                 {isLoadingEvents ? (
                   <div className="p-3 text-center text-xs text-[#45464d]">
-                    Memuatkan acara dari Google Calendar...
+                    Loading events from Google Calendar...
                   </div>
                 ) : googleCalendarEvents.length === 0 ? (
                   <div className="p-3 bg-[#eff4ff] rounded-lg text-center text-xs text-[#45464d]">
-                    Tiada acara bertindih ditemui dalam Google Calendar.
+                    No overlapping events found in Google Calendar.
                   </div>
                 ) : (
                   <div className="flex flex-col gap-1.5 max-h-36 overflow-y-auto">
@@ -487,10 +487,10 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                       >
                         <div className="flex flex-col truncate">
                           <span className="font-semibold text-[#0b1c30] truncate">
-                            {event.summary || 'Acara Tanpa Tajuk'}
+                            {event.summary || 'Untitled Event'}
                           </span>
                           <span className="text-[10px] text-[#5f6368]">
-                            {event.start?.dateTime ? new Date(event.start.dateTime).toLocaleString('ms-MY') : event.start?.date}
+                            {event.start?.dateTime ? new Date(event.start.dateTime).toLocaleString('en-US') : event.start?.date}
                           </span>
                         </div>
                         {event.htmlLink && (
@@ -500,7 +500,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                             rel="noopener noreferrer"
                             className="text-[#1a73e8] hover:underline text-[11px] shrink-0 ml-2"
                           >
-                            Buka ↗
+                            Open ↗
                           </a>
                         )}
                       </div>
@@ -517,7 +517,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
           <div className="flex flex-col gap-3">
             <div className="flex flex-col gap-1.5">
               <label className="text-[12px] font-semibold text-[#0b1c30]">
-                Pautan Langganan iCal Peribadi (Auto-Update)
+                Personal iCal Subscription Feed (Auto-Update)
               </label>
               <div className="flex items-center gap-2">
                 <input 
@@ -534,18 +534,18 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                   <span className="material-symbols-outlined text-[16px]">
                     {copied ? 'check' : 'content_copy'}
                   </span>
-                  <span>{copied ? 'Disalin' : 'Salin'}</span>
+                  <span>{copied ? 'Copied' : 'Copy'}</span>
                 </button>
               </div>
               <span className="text-[11px] text-[#45464d]">
-                Boleh ditampal ke dalam Microsoft Outlook "Add from Internet" atau Apple Calendar.
+                Can be pasted into Microsoft Outlook "Add from Internet" or Apple Calendar.
               </span>
             </div>
 
             <div className="p-3 bg-[#eff4ff] rounded-xl border border-[#dce9ff] flex items-center justify-between">
               <div className="flex flex-col">
-                <span className="text-xs font-bold text-[#0b1c30]">Muat Turun Fail Kalendar (.ics)</span>
-                <span className="text-[11px] text-[#45464d]">Eksport semua tempahan sebagai fail .ics</span>
+                <span className="text-xs font-bold text-[#0b1c30]">Download Calendar File (.ics)</span>
+                <span className="text-[11px] text-[#45464d]">Export all reservations as .ics file</span>
               </div>
               <button
                 type="button"
@@ -553,7 +553,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
                 className="px-3 py-1.5 bg-[#000000] text-white rounded-lg text-xs font-semibold hover:bg-[#131b2e] transition-colors flex items-center gap-1"
               >
                 <span className="material-symbols-outlined text-[14px]">download</span>
-                <span>Muat Turun Semua</span>
+                <span>Download All</span>
               </button>
             </div>
           </div>
@@ -570,7 +570,7 @@ export const SyncCalendarModal: React.FC<SyncCalendarModalProps> = ({
             onClick={onClose}
             className="px-4 py-2 bg-[#000000] text-white rounded-xl text-sm font-semibold hover:bg-[#131b2e] transition-colors cursor-pointer"
           >
-            Selesai
+            Done
           </button>
         </div>
       </div>

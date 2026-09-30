@@ -24,7 +24,9 @@ import { NewReservationModal } from './components/NewReservationModal';
 import { SyncCalendarModal } from './components/SyncCalendarModal';
 import { AuthModal } from './components/AuthModal';
 import { LinksModal } from './components/LinksModal';
+import { ViewBookingDetailsModal } from './components/ViewBookingDetailsModal';
 import { Toast } from './components/Toast';
+import { validateBookingConflict } from './utils/bookingValidation';
 import { 
   auth, 
   db, 
@@ -80,6 +82,7 @@ export default function App() {
   const [newReservationDefaults, setNewReservationDefaults] = useState<{ roomId?: string; date?: string; time?: string }>({});
   const [isSyncModalOpen, setIsSyncModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [selectedBookingForDetails, setSelectedBookingForDetails] = useState<Booking | null>(null);
 
   // Toast state
   const [toast, setToast] = useState<ToastMessage | null>(null);
@@ -221,16 +224,16 @@ export default function App() {
     };
   }, [currentUser]);
 
-  // Multi-user Sign Up (Daftar Pengguna Baharu terus ke Firebase Firestore /users)
+  // Multi-user Sign Up (Register new staff directly into Firebase Firestore /users)
   const handleSignUpStaff = async (name: string, department: string, role?: string, email?: string) => {
     try {
       const profile = await signUpNewStaffInFirebase({ name, department, role, email });
       setStaffUser(profile);
       localStorage.setItem('ghr_active_staff', JSON.stringify(profile));
-      showToast(`Pengguna baharu ${profile.name} didaftarkan ke Firebase!`, `Jabatan: ${profile.department} (Tersimpan dalam Firestore /users)`);
+      showToast(`New user ${profile.name} registered to Firebase!`, `Department: ${profile.department} (Saved in Firestore /users)`);
     } catch (err) {
       console.error('Failed to sign up staff to Firebase:', err);
-      showToast('Gagal mendaftar pengguna ke Firebase.');
+      showToast('Failed to register user to Firebase.');
       throw err;
     }
   };
@@ -241,10 +244,10 @@ export default function App() {
       const profile = await loginOrRegisterStaff(name, department);
       setStaffUser(profile);
       localStorage.setItem('ghr_active_staff', JSON.stringify(profile));
-      showToast(`Selamat datang, ${profile.name}!`, `Jabatan: ${profile.department} (Multiuser disegerakkan)`);
+      showToast(`Welcome back, ${profile.name}!`, `Department: ${profile.department} (Multiuser profile synchronized)`);
     } catch (err) {
       console.error('Failed to login staff:', err);
-      showToast('Gagal mendaftar/log masuk ke Firebase.');
+      showToast('Failed to sign in to Firebase.');
       throw err;
     }
   };
@@ -252,7 +255,7 @@ export default function App() {
   const handleLogoutStaff = () => {
     localStorage.removeItem('ghr_active_staff');
     setIsAuthModalOpen(true);
-    showToast('Sesi staf ditukar. Sila masukkan nama & jabatan.');
+    showToast('Staff session switched. Please enter your name & department.');
   };
 
   // System Links Handlers
@@ -264,7 +267,7 @@ export default function App() {
   const handleDeleteSystemLink = async (linkId: string) => {
     await deleteSystemLinkInFirestore(linkId);
     setSystemLinks((prev) => prev.filter((l) => l.id !== linkId));
-    showToast('Pautan dipadam daripada Firebase.');
+    showToast('Link removed from Firebase.');
   };
 
   // Cancel Booking
@@ -276,7 +279,7 @@ export default function App() {
     setBookings((prev) => prev.filter((b) => b.id !== bookingId));
     setCancellationsCount((prev) => prev + 1);
     setCancelModalBooking(null);
-    showToast('Tempahan dibatalkan. Slot matrix dibuka semula.');
+    showToast('Booking cancelled. Slot reopened in availability matrix.');
 
     try {
       await deleteBookingInFirestore(bookingId);
@@ -296,6 +299,26 @@ export default function App() {
     newDateString: string, 
     slot: { startTime: string; endTime: string; duration: string }
   ) => {
+    // REJECTION CHECK: Reject if there is already an existing booking on that date & overlapping time
+    const currentBooking = bookings.find((b) => b.id === bookingId);
+    if (currentBooking) {
+      const conflictCheck = validateBookingConflict(bookings, {
+        roomId: currentBooking.roomId,
+        dateString: newDateString,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        ignoreBookingId: bookingId
+      });
+
+      if (conflictCheck.hasConflict && conflictCheck.conflictingBooking) {
+        showToast(
+          'Reschedule Rejected: Slot Conflict!',
+          `Room is already booked by ${conflictCheck.conflictingBooking.bookedBy} (${conflictCheck.conflictingBooking.startTime} - ${conflictCheck.conflictingBooking.endTime}). Please select another slot.`
+        );
+        return;
+      }
+    }
+
     const updates = {
       date: newDate,
       dateString: newDateString,
@@ -309,7 +332,7 @@ export default function App() {
       prev.map((b) => (b.id === bookingId ? { ...b, ...updates } : b))
     );
     setRescheduleModalBooking(null);
-    showToast('Sesi berjaya dijadualkan semula dan disahkan.');
+    showToast('Session successfully rescheduled and confirmed.');
 
     try {
       await updateBookingInFirestore(bookingId, updates);
@@ -328,7 +351,7 @@ export default function App() {
       prev.map((b) => (b.id === bookingId ? { ...b, ...updated } : b))
     );
     setModifyModalBooking(null);
-    showToast('Butiran tempahan berjaya dikemas kini.');
+    showToast('Reservation details successfully updated.');
 
     try {
       await updateBookingInFirestore(bookingId, updated);
@@ -344,6 +367,22 @@ export default function App() {
   };
 
   const handleConfirmNewReservation = async (newBooking: Booking) => {
+    // REJECTION CHECK: Reject if there is already an existing booking for the same room on the same date and overlapping time
+    const conflictCheck = validateBookingConflict(bookings, {
+      roomId: newBooking.roomId,
+      dateString: newBooking.dateString,
+      startTime: newBooking.startTime,
+      endTime: newBooking.endTime
+    });
+
+    if (conflictCheck.hasConflict && conflictCheck.conflictingBooking) {
+      showToast(
+        'Booking Rejected: Slot Conflict!',
+        `Room '${newBooking.roomName}' has already been booked by ${conflictCheck.conflictingBooking.bookedBy} (${conflictCheck.conflictingBooking.startTime} - ${conflictCheck.conflictingBooking.endTime}). Please choose another time or room.`
+      );
+      return;
+    }
+
     // Inject active staff member's info into booking
     const enrichedBooking: Booking = {
       ...newBooking,
@@ -354,7 +393,7 @@ export default function App() {
 
     setBookings((prev) => [enrichedBooking, ...prev]);
     setIsNewReservationOpen(false);
-    showToast(`Bilik ditempah oleh ${staffUser.name}!`, `Panel pintu bilik & kalendar diselaraskan.`);
+    showToast(`Room booked for ${staffUser.name}!`, `Door display & schedule updated.`);
     setActiveTab('my-bookings');
 
     try {
@@ -371,7 +410,7 @@ export default function App() {
       time: '11:00 AM'
     });
     setIsNewReservationOpen(true);
-    showToast(`Konfigurasi tempahan semula dibuka untuk ${item.roomName}`);
+    showToast(`Re-booking configuration opened for ${item.roomName}`);
   };
 
   // Book slot from matrix view
@@ -399,14 +438,14 @@ export default function App() {
       const staffName = user.displayName || staffUser.name;
       const profile = await loginOrRegisterStaff(staffName, staffUser.department);
       setStaffUser(profile);
-      showToast(`Log masuk Google berjaya sebagai ${staffName}`);
+      showToast(`Google Sign-In successful as ${staffName}`);
     }
   };
 
   const handleSignOut = async () => {
     await signOutUser();
     setCurrentUser(null);
-    showToast('Log keluar daripada sesi korporat');
+    showToast('Signed out of corporate session');
   };
 
   return (
@@ -445,13 +484,15 @@ export default function App() {
             onRebookHistorical={handleRebookHistorical}
             onNavigateToMatrix={() => setActiveTab('room-availability-matrix')}
             onToast={(msg) => showToast(msg)}
+            onViewBookingDetails={(b) => setSelectedBookingForDetails(b)}
           />
         )}
 
         {activeTab === 'book-a-room' && (
           <BookRoomView
             rooms={rooms}
-            onSelectRoomToBook={(room, defaultTime) => handleOpenNewReservation(room.id, undefined, defaultTime)}
+            existingBookings={bookings}
+            onSelectRoomToBook={(room, defaultTime, defaultDate) => handleOpenNewReservation(room.id, defaultDate, defaultTime)}
             onNavigateToMatrix={() => setActiveTab('room-availability-matrix')}
           />
         )}
@@ -460,8 +501,9 @@ export default function App() {
           <MatrixView
             rooms={rooms}
             bookings={bookings}
+            staffUser={staffUser}
             onBookSlot={handleBookFromMatrix}
-            onViewBooking={() => setActiveTab('my-bookings')}
+            onViewBooking={(b) => setSelectedBookingForDetails(b)}
           />
         )}
       </main>
@@ -490,6 +532,24 @@ export default function App() {
         onToast={(msg) => showToast(msg)}
       />
 
+      {/* View Booking Details Modal for Any Staff / Colleague Booking */}
+      <ViewBookingDetailsModal
+        booking={selectedBookingForDetails}
+        isOpen={Boolean(selectedBookingForDetails)}
+        staffUser={staffUser}
+        onClose={() => setSelectedBookingForDetails(null)}
+        onReschedule={(b) => {
+          setSelectedBookingForDetails(null);
+          handleOpenReschedule(b);
+        }}
+        onCancel={(b) => {
+          setSelectedBookingForDetails(null);
+          handleOpenCancel(b);
+        }}
+        onOpenSyncCalendar={() => setIsSyncModalOpen(true)}
+        onToast={(msg) => showToast(msg)}
+      />
+
       {/* Modals & Overlays */}
       <CancellationModal
         booking={cancelModalBooking}
@@ -500,6 +560,7 @@ export default function App() {
 
       <RescheduleModal
         booking={rescheduleModalBooking}
+        existingBookings={bookings}
         isOpen={Boolean(rescheduleModalBooking)}
         onClose={() => setRescheduleModalBooking(null)}
         onSave={handleSaveReschedule}
@@ -514,6 +575,7 @@ export default function App() {
 
       <NewReservationModal
         rooms={rooms}
+        existingBookings={bookings}
         selectedRoomId={newReservationDefaults.roomId}
         defaultDate={newReservationDefaults.date}
         defaultTime={newReservationDefaults.time}
@@ -537,7 +599,7 @@ export default function App() {
           <div className="bg-white w-full max-w-sm rounded-2xl shadow-xl p-6 flex flex-col gap-4 border border-[#e2e8f0]">
             <div className="flex items-center justify-between border-b border-[#e2e8f0] pb-3">
               <span className="font-['Plus_Jakarta_Sans'] text-base font-bold text-[#0b1c30]">
-                Profil Staf & Firebase Cloud
+                Staff Profile & Firebase Cloud
               </span>
               <button 
                 onClick={() => setIsProfileModalOpen(false)}
@@ -570,15 +632,15 @@ export default function App() {
                 <span>Multiuser Firestore:</span>
                 <span className="font-semibold text-[#006a61] flex items-center gap-1">
                   <span className="w-2 h-2 rounded-full bg-[#006a61] animate-pulse"></span>
-                  {allStaff.length} Staf Berdaftar
+                  {allStaff.length} Registered Staff
                 </span>
               </div>
               <div className="flex justify-between">
-                <span>Pautan Disimpan:</span>
-                <span className="font-semibold text-[#0b1c30]">{systemLinks.length} Pautan Aktif</span>
+                <span>Stored Links:</span>
+                <span className="font-semibold text-[#0b1c30]">{systemLinks.length} Active Links</span>
               </div>
               <div className="flex justify-between">
-                <span>Pangkalan Data:</span>
+                <span>Database Region:</span>
                 <span className="font-mono text-[10px] text-[#0b1c30]">asia-southeast1</span>
               </div>
             </div>
@@ -593,7 +655,7 @@ export default function App() {
                 className="w-full py-2 bg-[#000000] text-white hover:bg-[#131b2e] rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 shadow-sm"
               >
                 <span className="material-symbols-outlined text-[16px]">swap_horiz</span>
-                <span>Tukar Akaun Staf (Log Masuk)</span>
+                <span>Switch Staff Account (Sign In)</span>
               </button>
 
               <button
@@ -605,7 +667,7 @@ export default function App() {
                 className="w-full py-2 bg-[#eff4ff] hover:bg-[#dce9ff] text-[#006a61] rounded-xl text-xs font-semibold transition-colors flex items-center justify-center gap-1.5 border border-[#dce9ff]"
               >
                 <span className="material-symbols-outlined text-[16px]">link</span>
-                <span>Urus Pautan Firebase ({systemLinks.length})</span>
+                <span>Manage Firebase Links ({systemLinks.length})</span>
               </button>
 
               <button
@@ -613,7 +675,7 @@ export default function App() {
                 onClick={() => setIsProfileModalOpen(false)}
                 className="w-full py-2 bg-white text-[#45464d] rounded-xl text-xs font-semibold hover:bg-[#eff4ff] transition-colors border border-[#e2e8f0]"
               >
-                Tutup
+                Close
               </button>
             </div>
           </div>

@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Room } from '../types';
+import { Room, Booking } from '../types';
+import { validateBookingConflict } from '../utils/bookingValidation';
 
 interface BookRoomViewProps {
   rooms: Room[];
-  onSelectRoomToBook: (room: Room, defaultTime?: string) => void;
+  existingBookings: Booking[];
+  onSelectRoomToBook: (room: Room, defaultTime?: string, defaultDate?: string) => void;
   onNavigateToMatrix: () => void;
 }
 
@@ -19,6 +21,7 @@ const AMENITY_FILTERS = [
 
 export const BookRoomView: React.FC<BookRoomViewProps> = ({
   rooms,
+  existingBookings,
   onSelectRoomToBook,
   onNavigateToMatrix
 }) => {
@@ -28,6 +31,25 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedDate, setSelectedDate] = useState('2024-10-24');
   const [preferredTime, setPreferredTime] = useState('02:00 PM');
+
+  // Compute 1 hour duration end time for quick availability checking
+  const calculateQuickEndTime = (start: string) => {
+    const [time, period] = start.split(' ');
+    const [hStr, mStr] = time.split(':');
+    let hours = parseInt(hStr, 10);
+    const minutes = parseInt(mStr, 10);
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+
+    const totalMinutes = hours * 60 + minutes + 60;
+    let endHours = Math.floor(totalMinutes / 60) % 24;
+    const endMinutes = totalMinutes % 60;
+    const endPeriod = endHours >= 12 ? 'PM' : 'AM';
+    if (endHours > 12) endHours -= 12;
+    if (endHours === 0) endHours = 12;
+
+    return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')} ${endPeriod}`;
+  };
 
   const filteredRooms = useMemo(() => {
     return rooms.filter((room) => {
@@ -63,14 +85,14 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
           <div className="flex items-center gap-1.5 text-[#006a61]">
             <span className="material-symbols-outlined text-[18px]">meeting_room</span>
             <span className="text-[11px] uppercase tracking-wider font-semibold">
-              Corporate Inventory Catalog
+              GHR Workspace & Meeting Rooms Catalog
             </span>
           </div>
           <h1 className="font-['Plus_Jakarta_Sans'] text-2xl sm:text-[28px] font-semibold text-[#0b1c30] tracking-tight leading-tight">
-            Book a Workspace
+            Book a Meeting Room
           </h1>
           <p className="text-[15px] sm:text-[16px] text-[#45464d] leading-relaxed">
-            Reserve verified executive meeting rooms, high-capacity command centers, and agile breakout spaces.
+            Select a meeting room, inspect real-time availability, and automatically prevent overlapping reservations with other team members.
           </p>
         </div>
 
@@ -81,7 +103,7 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
             className="px-4 py-2.5 bg-[#e5eeff] hover:bg-[#dce9ff] text-[#0b1c30] rounded-xl text-[13px] font-semibold flex items-center gap-2 transition-colors shadow-2xs"
           >
             <span className="material-symbols-outlined text-[18px]">view_timeline</span>
-            <span>View Timeline Matrix</span>
+            <span>View Room Schedule Matrix</span>
           </button>
         </div>
       </div>
@@ -91,7 +113,7 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-semibold text-[#45464d] uppercase tracking-wider">
-              Booking Date
+              Selected Date
             </label>
             <input 
               type="date" 
@@ -103,19 +125,23 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
 
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-semibold text-[#45464d] uppercase tracking-wider">
-              Start Time
+              Preferred Time
             </label>
             <select
               value={preferredTime}
               onChange={(e) => setPreferredTime(e.target.value)}
               className="px-3.5 py-1.5 bg-[#eff4ff] border border-[#dce9ff] rounded-lg text-sm text-[#0b1c30] font-medium focus:outline-none focus:bg-white"
             >
+              <option value="08:00 AM">08:00 AM</option>
               <option value="09:00 AM">09:00 AM</option>
               <option value="10:00 AM">10:00 AM</option>
+              <option value="11:00 AM">11:00 AM</option>
               <option value="11:30 AM">11:30 AM</option>
+              <option value="01:00 PM">01:00 PM</option>
               <option value="02:00 PM">02:00 PM</option>
-              <option value="03:30 PM">03:30 PM</option>
-              <option value="04:30 PM">04:30 PM</option>
+              <option value="03:00 PM">03:00 PM</option>
+              <option value="04:00 PM">04:00 PM</option>
+              <option value="05:00 PM">05:00 PM</option>
             </select>
           </div>
         </div>
@@ -129,7 +155,7 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Filter by room name or feature..."
+            placeholder="Filter by room name or features..."
             className="w-full pl-10 pr-4 py-2 bg-[#eff4ff] rounded-lg text-sm text-[#0b1c30] placeholder:text-[#45464d] focus:outline-none focus:bg-white border border-[#dce9ff]"
           />
         </div>
@@ -196,7 +222,7 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
             onChange={(e) => setSelectedFloor(e.target.value)}
             className="px-3 py-1 bg-[#eff4ff] border border-[#dce9ff] rounded-lg text-xs font-medium text-[#0b1c30] focus:outline-none"
           >
-            <option value="all">Semua Lokasi</option>
+            <option value="all">All Locations</option>
             <option value="Level 3">Level 3, Anjung Riong</option>
           </select>
         </div>
@@ -204,14 +230,14 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
         {/* Equipment selector */}
         <div className="flex items-center gap-2">
           <span className="text-[11px] uppercase tracking-wider font-semibold text-[#45464d]">
-            Key Amenity:
+            Key Amenities:
           </span>
           <select
             value={selectedAmenity}
             onChange={(e) => setSelectedAmenity(e.target.value)}
             className="px-3 py-1 bg-[#eff4ff] border border-[#dce9ff] rounded-lg text-xs font-medium text-[#0b1c30] focus:outline-none"
           >
-            <option value="all">Any Amenity</option>
+            <option value="all">All Amenities</option>
             {AMENITY_FILTERS.map((a) => (
               <option key={a} value={a}>{a}</option>
             ))}
@@ -219,14 +245,25 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
         </div>
       </div>
 
-      {/* Room Cards Grid */}
+      {/* Room Cards Grid with Live Conflict / Availability Badge */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredRooms.map((room) => {
-          const isAvailable = room.availableSlotsCount > 0;
+          const quickEndTime = calculateQuickEndTime(preferredTime);
+          const conflictCheck = validateBookingConflict(existingBookings, {
+            roomId: room.id,
+            dateString: selectedDate,
+            startTime: preferredTime,
+            endTime: quickEndTime
+          });
+
+          const isConflict = conflictCheck.hasConflict;
+
           return (
             <div
               key={room.id}
-              className="bg-white rounded-xl shadow-md border border-[#e2e8f0]/90 overflow-hidden flex flex-col hover:shadow-lg transition-all"
+              className={`bg-white rounded-xl shadow-md border overflow-hidden flex flex-col hover:shadow-lg transition-all ${
+                isConflict ? 'border-red-200' : 'border-[#e2e8f0]/90'
+              }`}
             >
               {/* Image banner with badges */}
               <div className="relative h-48 w-full overflow-hidden bg-slate-100">
@@ -247,13 +284,17 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
                 </div>
 
                 <div className="absolute top-3 right-3">
-                  <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold backdrop-blur-md shadow-sm ${
-                    isAvailable 
-                      ? 'bg-[#006a61] text-white' 
-                      : 'bg-[#131b2e] text-white'
-                  }`}>
-                    {room.statusText}
-                  </span>
+                  {isConflict ? (
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-red-600 text-white shadow-sm flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px]">block</span>
+                      <span>Booked ({preferredTime})</span>
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-full text-[11px] font-semibold bg-[#006a61] text-white shadow-sm flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px]">check</span>
+                      <span>Available ({preferredTime})</span>
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -272,6 +313,19 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
                   <p className="text-[13px] text-[#45464d] line-clamp-2 mt-1 leading-relaxed">
                     {room.description}
                   </p>
+
+                  {/* Conflict indicator callout */}
+                  {isConflict && conflictCheck.conflictingBooking && (
+                    <div className="p-2.5 bg-red-50 border border-red-200 rounded-lg text-xs text-red-800 flex items-start gap-2 mt-1">
+                      <span className="material-symbols-outlined text-red-600 text-[16px] shrink-0 mt-0.5">info</span>
+                      <div className="flex flex-col">
+                        <span className="font-bold text-red-700">This slot is already reserved:</span>
+                        <span>
+                          Booked by <strong>{conflictCheck.conflictingBooking.bookedBy}</strong> ({conflictCheck.conflictingBooking.startTime} – {conflictCheck.conflictingBooking.endTime}) for "{conflictCheck.conflictingBooking.purpose}".
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Amenities pills */}
@@ -293,15 +347,22 @@ export const BookRoomView: React.FC<BookRoomViewProps> = ({
                     onClick={onNavigateToMatrix}
                     className="text-[12px] font-medium text-[#45464d] hover:text-[#006a61] transition-colors"
                   >
-                    View Schedule
+                    Full Schedule
                   </button>
+
                   <button
                     type="button"
-                    onClick={() => onSelectRoomToBook(room, preferredTime)}
-                    className="px-4 py-2 bg-[#000000] text-white hover:bg-[#131b2e] rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer"
+                    onClick={() => onSelectRoomToBook(room, preferredTime, selectedDate)}
+                    className={`px-4 py-2 rounded-xl text-xs font-semibold shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ${
+                      isConflict
+                        ? 'bg-amber-700 hover:bg-amber-800 text-white'
+                        : 'bg-[#000000] hover:bg-[#131b2e] text-white'
+                    }`}
                   >
-                    <span className="material-symbols-outlined text-[16px]">add_circle</span>
-                    <span>Reserve Room</span>
+                    <span className="material-symbols-outlined text-[16px]">
+                      {isConflict ? 'schedule' : 'add_circle'}
+                    </span>
+                    <span>{isConflict ? 'Select Other Time' : 'Book Now'}</span>
                   </button>
                 </div>
               </div>

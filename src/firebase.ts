@@ -120,7 +120,7 @@ export async function createGoogleCalendarEvent(
 
   const eventPayload = {
     summary: `${booking.purpose} [${booking.roomName}]`,
-    description: `🏢 Tempahan Bilik GHR Workspaces\n📍 Bilik: ${booking.roomName}\n📌 Lokasi: ${booking.location}\n👤 Hos: ${booking.bookedBy} (${booking.department})\n👥 Bilangan Peserta: ${booking.attendeesCount || 1} pax\n📋 ID Tempahan: ${booking.id}\n📝 Nota: ${booking.notes || 'Tiada nota tambahan'}`,
+    description: `🏢 GHR Workspaces Meeting Room Reservation\n📍 Room: ${booking.roomName}\n📌 Location: ${booking.location}\n👤 Host: ${booking.bookedBy} (${booking.department})\n👥 Attendees: ${booking.attendeesCount || 1} pax\n📋 Booking ID: ${booking.id}\n📝 Notes: ${booking.notes || 'No additional notes'}`,
     location: booking.location,
     start: {
       dateTime: startIso,
@@ -403,7 +403,7 @@ export async function signUpNewStaffInFirebase(data: {
   try {
     const userDocRef = doc(db, 'users', normalizedId);
     await setDoc(userDocRef, newProfile);
-    console.log('Pengguna baharu berjaya didaftarkan ke Firestore /users:', newProfile);
+    console.log('New staff profile successfully registered to Firestore /users:', newProfile);
     return newProfile;
   } catch (error) {
     handleFirestoreError(error, OperationType.CREATE, path);
@@ -451,8 +451,8 @@ export async function seedInitialDataIfEmpty(): Promise<void> {
       for (const booking of INITIAL_BOOKINGS) {
         await setDoc(doc(db, bookingsPath, booking.id), {
           ...booking,
-          userId: 'usr_budi_santoso',
-          userEmail: 'rohas@mediaprima.com.my',
+          userId: booking.userId || 'usr_budi_santoso',
+          userEmail: booking.userEmail || `${booking.bookedBy.toLowerCase().replace(/\s+/g, '.')}@mediaprima.com.my`,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
         });

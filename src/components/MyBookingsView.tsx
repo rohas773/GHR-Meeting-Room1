@@ -18,6 +18,7 @@ interface MyBookingsViewProps {
   onRebookHistorical: (item: HistoricalSession) => void;
   onNavigateToMatrix: () => void;
   onToast: (msg: string) => void;
+  onViewBookingDetails?: (booking: Booking) => void;
 }
 
 export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
@@ -35,49 +36,88 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
   onModifyBooking,
   onRebookHistorical,
   onNavigateToMatrix,
-  onToast
+  onToast,
+  onViewBookingDetails
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRoomFilter, setSelectedRoomFilter] = useState<'all' | 'meeting' | 'warroom'>('all');
+  const [selectedDeptFilter, setSelectedDeptFilter] = useState<string>('all');
   const [sortOrder, setSortOrder] = useState<'upcoming' | 'recent'>('upcoming');
-  const [scopeFilter, setScopeFilter] = useState<'my' | 'all'>('my');
+  const [scopeFilter, setScopeFilter] = useState<'all' | 'my' | 'others'>('all');
+
+  // Helper to determine if a booking is owned by current staff user
+  const checkIsMyBooking = (b: Booking): boolean => {
+    if (!staffUser) return false;
+    const nameMatch = b.bookedBy.toLowerCase() === staffUser.name.toLowerCase();
+    const idMatch = b.userId === staffUser.id;
+    return nameMatch || idMatch;
+  };
+
+  // Counts for each category
+  const myBookingsCount = useMemo(() => {
+    return bookings.filter(checkIsMyBooking).length;
+  }, [bookings, staffUser]);
+
+  const othersBookingsCount = useMemo(() => {
+    return bookings.filter((b) => !checkIsMyBooking(b)).length;
+  }, [bookings, staffUser]);
+
+  // Extract all distinct departments from bookings
+  const departments = useMemo(() => {
+    const set = new Set<string>();
+    bookings.forEach((b) => {
+      if (b.department) set.add(b.department);
+    });
+    return Array.from(set);
+  }, [bookings]);
 
   // Filter and sort bookings
   const filteredBookings = useMemo(() => {
-    return bookings.filter((b) => {
-      // User scope filter (if 'my', show user's bookings; if 'all', show company-wide)
-      if (scopeFilter === 'my' && staffUser) {
-        const isOwner = b.bookedBy.toLowerCase() === staffUser.name.toLowerCase() ||
-                        b.userId === staffUser.id ||
-                        b.department.toLowerCase() === staffUser.department.toLowerCase();
-        // If no match found under 'my', but total bookings is small, let user switch easily
-        if (!isOwner) return false;
-      }
+    return bookings
+      .filter((b) => {
+        // User scope filter: 'all' vs 'my' vs 'others'
+        const isMine = checkIsMyBooking(b);
+        if (scopeFilter === 'my' && !isMine) return false;
+        if (scopeFilter === 'others' && isMine) return false;
 
-      // Room match
-      if (selectedRoomFilter !== 'all') {
-        if (b.roomId !== selectedRoomFilter) return false;
-      }
+        // Room match
+        if (selectedRoomFilter !== 'all') {
+          if (b.roomId !== selectedRoomFilter) return false;
+        }
 
-      // Query match
-      if (searchQuery.trim()) {
-        const q = searchQuery.toLowerCase();
-        const matchPurpose = b.purpose.toLowerCase().includes(q);
-        const matchRoom = b.roomName.toLowerCase().includes(q);
-        const matchDept = b.department.toLowerCase().includes(q);
-        const matchId = b.id.toLowerCase().includes(q);
-        const matchUser = b.bookedBy.toLowerCase().includes(q);
-        if (!matchPurpose && !matchRoom && !matchDept && !matchId && !matchUser) return false;
-      }
+        // Department match
+        if (selectedDeptFilter !== 'all') {
+          if (b.department !== selectedDeptFilter) return false;
+        }
 
-      return true;
-    });
-  }, [bookings, selectedRoomFilter, searchQuery, scopeFilter, staffUser]);
+        // Query match
+        if (searchQuery.trim()) {
+          const q = searchQuery.toLowerCase();
+          const matchPurpose = b.purpose.toLowerCase().includes(q);
+          const matchRoom = b.roomName.toLowerCase().includes(q);
+          const matchDept = b.department.toLowerCase().includes(q);
+          const matchId = b.id.toLowerCase().includes(q);
+          const matchUser = b.bookedBy.toLowerCase().includes(q);
+          const matchNotes = b.notes ? b.notes.toLowerCase().includes(q) : false;
+          if (!matchPurpose && !matchRoom && !matchDept && !matchId && !matchUser && !matchNotes) {
+            return false;
+          }
+        }
 
+        return true;
+      })
+      .sort((a, b) => {
+        if (sortOrder === 'upcoming') {
+          return a.dateString.localeCompare(b.dateString);
+        } else {
+          return b.dateString.localeCompare(a.dateString);
+        }
+      });
+  }, [bookings, selectedRoomFilter, selectedDeptFilter, searchQuery, scopeFilter, staffUser, sortOrder]);
 
   const handleDownloadIcs = (booking: Booking) => {
     downloadIcsFile(booking);
-    onToast(`Calendar event downloaded (.ics) for ${booking.roomName}`);
+    onToast(`Calendar (.ics) downloaded for room ${booking.roomName}`);
   };
 
   return (
@@ -88,14 +128,14 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
           <div className="flex items-center gap-1.5 text-[#006a61]">
             <span className="material-symbols-outlined text-[18px]">calendar_month</span>
             <span className="text-[11px] uppercase tracking-wider font-semibold">
-              Enterprise Scheduling Desk
+              Enterprise Scheduling Desk &bull; Staff Reservation Schedule
             </span>
           </div>
           <h1 className="font-['Plus_Jakarta_Sans'] text-2xl sm:text-[28px] font-semibold text-[#0b1c30] tracking-tight leading-tight">
-            My Bookings
+            Room Reservations & Schedule
           </h1>
           <p className="text-[15px] sm:text-[16px] text-[#45464d] leading-relaxed">
-            Manage your active reservations or cancel slots to make them available for other staff.
+            View all staff reservations, inspect colleagues' bookings, and manage meeting room slots across GHR Workspaces.
           </p>
         </div>
 
@@ -119,89 +159,117 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
             className="px-4 py-2.5 bg-[#000000] text-white hover:bg-[#131b2e] rounded-xl text-[13px] font-semibold flex items-center gap-2 shadow-md transition-all cursor-pointer"
           >
             <span className="material-symbols-outlined text-[18px]">add</span>
-            <span>New Reservation</span>
+            <span>Book New Room</span>
           </button>
         </div>
       </div>
 
-      {/* Multi-user Staff Notice & Scope Bar */}
-      <div className="bg-[#eff4ff] p-3.5 rounded-xl border border-[#dce9ff] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full bg-[#000000] text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs">
+      {/* Multi-user Staff Notice & Scope Filter Bar */}
+      <div className="bg-[#eff4ff] p-4 rounded-xl border border-[#dce9ff] flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+        {/* Active Staff profile */}
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-[#131b2e] text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-2xs">
             {staffUser?.avatar || 'BS'}
           </div>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <span className="text-[13px] font-bold text-[#0b1c30]">
+              <span className="text-sm font-bold text-[#0b1c30]">
                 {staffUser?.name || 'Budi Santoso'}
               </span>
-              <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-white text-[#006a61] border border-[#dce9ff]">
+              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-white text-[#006a61] border border-[#dce9ff]">
                 {staffUser?.department || 'People & Operations'}
               </span>
             </div>
             <span className="text-[11px] text-[#45464d]">
-              Sesi staf aktif &bull; Semua tempahan disegerakkan ke akaun ini
+              Active staff session &bull; Switch staff to change profile or register a new account
             </span>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 self-end sm:self-auto">
-          {/* Scope Toggle: My Bookings vs All Staff */}
-          <div className="flex items-center bg-white p-1 rounded-lg border border-[#dce9ff] shadow-2xs">
-            <button
-              type="button"
-              onClick={() => setScopeFilter('my')}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                scopeFilter === 'my'
-                  ? 'bg-[#006a61] text-white shadow-2xs'
-                  : 'text-[#45464d] hover:text-[#0b1c30]'
-              }`}
-            >
-              Tempahan Saya
-            </button>
-            <button
-              type="button"
-              onClick={() => setScopeFilter('all')}
-              className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${
-                scopeFilter === 'all'
-                  ? 'bg-[#006a61] text-white shadow-2xs'
-                  : 'text-[#45464d] hover:text-[#0b1c30]'
-              }`}
-            >
-              Semua Staf ({bookings.length})
-            </button>
-          </div>
-
           <button
             type="button"
             onClick={onOpenAuth}
-            className="px-3 py-1.5 bg-white hover:bg-[#dce9ff] text-[#006a61] rounded-lg text-xs font-semibold border border-[#dce9ff] transition-colors flex items-center gap-1"
+            className="ml-auto lg:ml-2 px-3 py-1.5 bg-white hover:bg-[#dce9ff] text-[#006a61] rounded-lg text-xs font-semibold border border-[#dce9ff] transition-colors flex items-center gap-1 shrink-0"
           >
             <span className="material-symbols-outlined text-[15px]">swap_horiz</span>
-            <span>Tukar Staf</span>
+            <span>Switch Staff</span>
+          </button>
+        </div>
+
+        {/* Scope switcher (All vs My Bookings vs Colleagues' Bookings) */}
+        <div className="flex items-center bg-white p-1.5 rounded-xl border border-[#dce9ff] shadow-sm self-start lg:self-auto">
+          <button
+            type="button"
+            onClick={() => setScopeFilter('all')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              scopeFilter === 'all'
+                ? 'bg-[#131b2e] text-white shadow-xs'
+                : 'text-[#45464d] hover:text-[#0b1c30] hover:bg-[#eff4ff]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[15px]">dashboard</span>
+            <span>All Bookings</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              scopeFilter === 'all' ? 'bg-white/20 text-white' : 'bg-[#e5eeff] text-[#0b1c30]'
+            }`}>
+              {bookings.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setScopeFilter('my')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              scopeFilter === 'my'
+                ? 'bg-[#006a61] text-white shadow-xs'
+                : 'text-[#45464d] hover:text-[#0b1c30] hover:bg-[#eff4ff]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[15px]">person</span>
+            <span>My Bookings</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              scopeFilter === 'my' ? 'bg-white/20 text-white' : 'bg-[#e5eeff] text-[#0b1c30]'
+            }`}>
+              {myBookingsCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setScopeFilter('others')}
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+              scopeFilter === 'others'
+                ? 'bg-[#4f46e5] text-white shadow-xs'
+                : 'text-[#45464d] hover:text-[#0b1c30] hover:bg-[#eff4ff]'
+            }`}
+          >
+            <span className="material-symbols-outlined text-[15px]">group</span>
+            <span>Colleagues' Bookings</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              scopeFilter === 'others' ? 'bg-white/20 text-white' : 'bg-[#e5eeff] text-[#0b1c30]'
+            }`}>
+              {othersBookingsCount}
+            </span>
           </button>
         </div>
       </div>
 
       {/* 3 Metric Cards */}
-
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-        {/* Active Reservations */}
+        {/* Total Active Bookings */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-[#e2e8f0]/80 flex items-center justify-between relative overflow-hidden">
           <div className="flex flex-col gap-1">
             <span className="text-[13px] text-[#45464d] font-medium">
-              Active Reservations
+              Total Active Bookings
             </span>
             <div className="flex items-baseline gap-2">
               <span className="font-['Plus_Jakarta_Sans'] text-4xl text-[#0b1c30] font-bold tabular-nums">
                 {bookings.length}
               </span>
               <span className="text-[12px] text-[#006a61] font-semibold">
-                Slots reserved
+                Slots Booked
               </span>
             </div>
             <span className="text-[11px] text-[#45464d]">
-              {bookings.length > 0 ? 'Next event starts in 2 hours' : 'No upcoming sessions'}
+              {myBookingsCount} by you &bull; {othersBookingsCount} by other staff
             </span>
           </div>
           <div className="w-12 h-12 rounded-full bg-[#86f2e4]/40 text-[#006f66] flex items-center justify-center shrink-0">
@@ -210,49 +278,49 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
           <div className="absolute -right-4 -bottom-4 w-24 h-24 rounded-full bg-[#006a61]/5 blur-xl pointer-events-none"></div>
         </div>
 
-        {/* Completed This Month */}
+        {/* Colleagues' Bookings Overview */}
         <div className="bg-white p-6 rounded-xl shadow-sm border border-[#e2e8f0]/80 flex items-center justify-between relative overflow-hidden">
           <div className="flex flex-col gap-1">
             <span className="text-[13px] text-[#45464d] font-medium">
-              Completed This Month
+              Colleagues' Bookings
+            </span>
+            <div className="flex items-baseline gap-2">
+              <span className="font-['Plus_Jakarta_Sans'] text-4xl text-[#4f46e5] font-bold tabular-nums">
+                {othersBookingsCount}
+              </span>
+              <span className="text-[12px] text-[#4f46e5] font-semibold">
+                Other Staff Sessions
+              </span>
+            </div>
+            <span className="text-[11px] text-[#45464d]">
+              Across departments at GHR
+            </span>
+          </div>
+          <div className="w-12 h-12 rounded-full bg-indigo-50 text-[#4f46e5] flex items-center justify-center shrink-0 border border-indigo-100">
+            <span className="material-symbols-outlined text-[24px]">groups</span>
+          </div>
+        </div>
+
+        {/* Monthly Completed Sessions */}
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-[#e2e8f0]/80 flex items-center justify-between relative overflow-hidden">
+          <div className="flex flex-col gap-1">
+            <span className="text-[13px] text-[#45464d] font-medium">
+              Completed Sessions This Month
             </span>
             <div className="flex items-baseline gap-2">
               <span className="font-['Plus_Jakarta_Sans'] text-4xl text-[#0b1c30] font-bold tabular-nums">
                 {historical.length}
               </span>
-              <span className="text-[12px] text-[#45464d] font-medium">
-                Recorded session
+              <span className="text-[12px] text-[#006a61] font-semibold">
+                Archived Records
               </span>
             </div>
             <span className="text-[11px] text-[#45464d]">
-              Last held on Oct 18
+              {cancellationsCount} cancellations recorded
             </span>
           </div>
           <div className="w-12 h-12 rounded-full bg-[#dce9ff] text-[#0b1c30] flex items-center justify-center shrink-0">
             <span className="material-symbols-outlined text-[24px]">check_circle</span>
-          </div>
-        </div>
-
-        {/* Monthly Cancellations */}
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-[#e2e8f0]/80 flex items-center justify-between relative overflow-hidden">
-          <div className="flex flex-col gap-1">
-            <span className="text-[13px] text-[#45464d] font-medium">
-              Monthly Cancellations
-            </span>
-            <div className="flex items-baseline gap-2">
-              <span className="font-['Plus_Jakarta_Sans'] text-4xl text-[#0b1c30] font-bold tabular-nums">
-                {cancellationsCount}
-              </span>
-              <span className="text-[12px] text-[#006a61] font-semibold">
-                {cancellationsCount === 0 ? 'Optimal utilization' : 'Released back to matrix'}
-              </span>
-            </div>
-            <span className="text-[11px] text-[#45464d]">
-              {cancellationsCount === 0 ? '100% floor attendance rating' : 'Slots instantly reused by staff'}
-            </span>
-          </div>
-          <div className="w-12 h-12 rounded-full bg-[#89f5e7] text-[#00201d] flex items-center justify-center shrink-0">
-            <span className="material-symbols-outlined text-[24px]">trending_up</span>
           </div>
         </div>
       </div>
@@ -267,7 +335,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search by purpose, keyword, or room..."
+            placeholder="Search by purpose, staff name, department, room..."
             className="w-full pl-10 pr-4 py-2 bg-[#eff4ff] rounded-lg text-sm text-[#0b1c30] placeholder:text-[#45464d] focus:outline-none focus:bg-white focus:ring-1 focus:ring-[#006a61] border border-[#dce9ff]/60 transition-all"
           />
           {searchQuery && (
@@ -281,6 +349,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
+          {/* Room Venue filter */}
           <div className="flex items-center gap-1 bg-[#eff4ff] p-1 rounded-lg border border-[#dce9ff]/50">
             <button
               type="button"
@@ -302,7 +371,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                   : 'text-[#45464d] hover:text-[#0b1c30]'
               }`}
             >
-              GHR Meeting Room
+              Meeting Room
             </button>
             <button
               type="button"
@@ -313,9 +382,23 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                   : 'text-[#45464d] hover:text-[#0b1c30]'
               }`}
             >
-              GHR War Room
+              War Room
             </button>
           </div>
+
+          {/* Department dropdown filter */}
+          {departments.length > 0 && (
+            <select
+              value={selectedDeptFilter}
+              onChange={(e) => setSelectedDeptFilter(e.target.value)}
+              className="px-3 py-1.5 bg-[#eff4ff] border border-[#dce9ff] rounded-lg text-xs font-medium text-[#0b1c30] focus:outline-none focus:bg-white"
+            >
+              <option value="all">All Departments ({departments.length})</option>
+              {departments.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+          )}
 
           <div className="h-6 w-px bg-[#d3e4fe] hidden sm:block"></div>
 
@@ -326,7 +409,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
           >
             <span className="material-symbols-outlined text-[16px]">swap_vert</span>
             <span className="text-[#0b1c30] font-medium">
-              {sortOrder === 'upcoming' ? 'Upcoming first' : 'Latest first'}
+              {sortOrder === 'upcoming' ? 'Upcoming Date' : 'Recent Date'}
             </span>
           </button>
         </div>
@@ -338,22 +421,28 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
         <div className="lg:col-span-8 flex flex-col gap-6">
           <div className="flex items-center justify-between">
             <h2 className="font-['Plus_Jakarta_Sans'] text-xl font-bold text-[#0b1c30] flex items-center gap-2">
-              <span>Upcoming Sessions</span>
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#e5eeff] text-[#0b1c30]">
+              <span>
+                {scopeFilter === 'all' && 'All Room Bookings'}
+                {scopeFilter === 'my' && 'Your Bookings'}
+                {scopeFilter === 'others' && 'Colleagues\' Bookings'}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#e5eeff] text-[#0b1c30]">
                 {filteredBookings.length}
               </span>
             </h2>
             <span className="text-[11px] text-[#45464d] flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-[#006a61] animate-pulse"></span>
-              Live updates enabled
+              Cloud sync active
             </span>
           </div>
 
           {/* Booking Cards */}
           {filteredBookings.map((booking) => {
             const isMeetingRoom = booking.roomId === 'meeting';
-            const topBarColor = isMeetingRoom ? 'bg-[#006a61]' : 'bg-[#d3e4fe]';
-            const badgeBg = isMeetingRoom ? 'bg-[#86f2e4] text-[#006f66]' : 'bg-[#dce9ff] text-[#0b1c30]';
+            const isMine = checkIsMyBooking(booking);
+
+            // Visual differentiation
+            const topBarColor = isMine ? 'bg-[#006a61]' : 'bg-[#4f46e5]';
 
             return (
               <div
@@ -366,30 +455,41 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                 <div className="p-6 flex flex-col gap-4">
                   {/* Top info and room thumbnail */}
                   <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
-                    <div className="flex flex-col gap-1">
+                    <div className="flex flex-col gap-1.5">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide ${badgeBg}`}>
-                          {booking.status}
-                        </span>
+                        {/* Ownership Badge */}
+                        {isMine ? (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide bg-[#86f2e4] text-[#006f66] flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[13px]">person</span>
+                            <span>Your Booking</span>
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold tracking-wide bg-indigo-100 text-indigo-700 border border-indigo-200 flex items-center gap-1">
+                            <span className="material-symbols-outlined text-[13px]">groups</span>
+                            <span>Colleague's Booking</span>
+                          </span>
+                        )}
+
                         <span className="px-2.5 py-0.5 rounded-full bg-[#dce9ff] text-[#0b1c30] text-[11px] font-medium flex items-center gap-1">
                           <span className="material-symbols-outlined text-[14px] text-[#006a61]">
                             {isMeetingRoom ? 'schedule' : 'event_repeat'}
                           </span>
                           {booking.urgencyBadge}
                         </span>
+
                         <span className="text-[#45464d] text-[11px] font-medium">
                           #{booking.id}
                         </span>
                       </div>
 
-                      <h3 className="font-['Plus_Jakarta_Sans'] text-xl font-bold text-[#0b1c30] mt-1">
-                        {booking.roomName}
+                      <h3 className="font-['Plus_Jakarta_Sans'] text-xl font-bold text-[#0b1c30] mt-0.5">
+                        {booking.purpose}
                       </h3>
                       <span className="text-[13px] text-[#45464d] flex items-center gap-1">
                         <span className="material-symbols-outlined text-[16px] text-[#006a61]">
                           location_on
                         </span>
-                        {booking.location}
+                        {booking.roomName} &bull; {booking.location}
                       </span>
                     </div>
 
@@ -421,36 +521,60 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                       </div>
                     </div>
                     <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-md text-[#0b1c30] text-[11px] font-medium border border-[#dce9ff] shadow-2xs">
-                      <span className={`w-2 h-2 rounded-full ${isMeetingRoom ? 'bg-[#006a61]' : 'bg-[#45464d]'}`}></span>
+                      <span className={`w-2 h-2 rounded-full ${isMine ? 'bg-[#006a61]' : 'bg-[#4f46e5]'}`}></span>
                       <span>{booking.lockType}</span>
                     </div>
                   </div>
 
-                  {/* Meeting Details: Purpose & Host */}
-                  <div className="flex flex-col gap-1.5 pt-1">
-                    <span className="text-[11px] uppercase tracking-wider font-semibold text-[#45464d]">
-                      Purpose / Subject
-                    </span>
-                    <p className="text-[15px] font-semibold text-[#0b1c30]">
-                      {booking.purpose}
-                    </p>
-                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[#45464d] text-[12px]">
-                      <div className="flex items-center gap-1">
-                        <span className="material-symbols-outlined text-[16px]">person</span>
-                        <span>
-                          Booked by {booking.bookedBy} ({booking.department})
+                  {/* Meeting Details: Host Profile & Department Card */}
+                  <div className={`p-3.5 rounded-xl border flex flex-col gap-2 ${
+                    isMine ? 'bg-white border-[#e2e8f0]' : 'bg-[#fcfdff] border-indigo-100'
+                  }`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[11px] uppercase tracking-wider font-semibold text-[#45464d]">
+                        {isMine ? 'Host Details (You)' : 'Booked by Colleague'}
+                      </span>
+                      {!isMine && (
+                        <span className="text-[11px] text-indigo-700 font-semibold bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                          {booking.department}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs text-white shrink-0 ${
+                        isMine ? 'bg-[#006a61]' : 'bg-[#131b2e]'
+                      }`}>
+                        {booking.bookedBy.slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-[#0b1c30]">
+                            {booking.bookedBy}
+                          </span>
+                          {isMine && (
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-bold bg-[#86f2e4] text-[#006f66]">
+                              (You)
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs text-[#45464d]">
+                          {booking.department} {booking.userEmail ? `• ${booking.userEmail}` : ''}
                         </span>
                       </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[#45464d] text-[12px] pt-1 border-t border-[#e2e8f0]/60">
                       {booking.attendeesCount && (
-                        <div className="flex items-center gap-1 text-[#45464d]">
-                          <span className="material-symbols-outlined text-[16px]">group</span>
+                        <div className="flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[16px] text-[#006a61]">group</span>
                           <span>{booking.attendeesCount} pax</span>
                         </div>
                       )}
                       {booking.notes && (
                         <div className="flex items-center gap-1 text-[#45464d]">
-                          <span className="material-symbols-outlined text-[16px]">notes</span>
-                          <span className="italic">{booking.notes}</span>
+                          <span className="material-symbols-outlined text-[16px] text-[#006a61]">notes</span>
+                          <span className="italic">"{booking.notes}"</span>
                         </div>
                       )}
                     </div>
@@ -459,6 +583,16 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                   {/* Footer Action Bar */}
                   <div className="flex flex-wrap items-center justify-between gap-2.5 pt-3 mt-1 bg-[#eff4ff]/60 -mx-6 -mb-6 p-4 border-t border-[#dce9ff]/60">
                     <div className="flex flex-wrap items-center gap-2">
+                      {/* View Details Modal for anyone */}
+                      <button
+                        type="button"
+                        onClick={() => onViewBookingDetails ? onViewBookingDetails(booking) : null}
+                        className="px-3.5 py-1.5 bg-white hover:bg-[#e5eeff] text-[#0b1c30] rounded-lg text-[13px] font-medium flex items-center gap-1.5 shadow-2xs border border-[#dce9ff] transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">info</span>
+                        <span>View Details</span>
+                      </button>
+
                       {/* Google Calendar Direct Sync/View Button */}
                       {booking.googleCalendarLink ? (
                         <a
@@ -466,7 +600,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                           target="_blank"
                           rel="noopener noreferrer"
                           className="px-3 py-1.5 bg-[#e6f4ea] hover:bg-[#ceead6] text-[#137333] rounded-lg text-[13px] font-medium flex items-center gap-1.5 shadow-2xs border border-[#ceead6] transition-colors"
-                          title="Buka dalam Google Calendar"
+                          title="Open in Google Calendar"
                         >
                           <span className="material-symbols-outlined text-[16px]">calendar_month</span>
                           <span>Google Cal ↗</span>
@@ -476,7 +610,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                           type="button"
                           onClick={onOpenSyncCalendar}
                           className="px-3 py-1.5 bg-white hover:bg-[#eff4ff] text-[#1a73e8] rounded-lg text-[13px] font-medium flex items-center gap-1.5 shadow-2xs border border-[#dce9ff] transition-colors"
-                          title="Segerakkan ke Google Calendar"
+                          title="Sync to Google Calendar"
                         >
                           <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
                             <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"/>
@@ -492,40 +626,54 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                         type="button"
                         onClick={() => handleDownloadIcs(booking)}
                         className="px-3.5 py-1.5 bg-white hover:bg-[#e5eeff] text-[#0b1c30] rounded-lg text-[13px] font-medium flex items-center gap-1.5 shadow-2xs border border-[#dce9ff] transition-colors"
+                        title="Download .ics calendar file"
                       >
                         <span className="material-symbols-outlined text-[16px]">file_download</span>
                         <span>.ics</span>
                       </button>
 
-                      {isMeetingRoom ? (
-                        <button
-                          type="button"
-                          onClick={() => onRescheduleBooking(booking)}
-                          className="px-3.5 py-1.5 bg-white hover:bg-[#e5eeff] text-[#0b1c30] rounded-lg text-[13px] font-medium flex items-center gap-1.5 shadow-2xs border border-[#dce9ff] transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
-                          <span>Reschedule</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onModifyBooking(booking)}
-                          className="px-3.5 py-1.5 bg-white hover:bg-[#e5eeff] text-[#0b1c30] rounded-lg text-[13px] font-medium flex items-center gap-1.5 shadow-2xs border border-[#dce9ff] transition-colors"
-                        >
-                          <span className="material-symbols-outlined text-[16px]">edit_note</span>
-                          <span>Modify Details</span>
-                        </button>
+                      {/* Management buttons if owner */}
+                      {isMine && (
+                        <>
+                          {isMeetingRoom ? (
+                            <button
+                              type="button"
+                              onClick={() => onRescheduleBooking(booking)}
+                              className="px-3.5 py-1.5 bg-white hover:bg-[#e5eeff] text-[#0b1c30] rounded-lg text-[13px] font-medium flex items-center gap-1.5 shadow-2xs border border-[#dce9ff] transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">edit_calendar</span>
+                              <span>Reschedule</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => onModifyBooking(booking)}
+                              className="px-3.5 py-1.5 bg-white hover:bg-[#e5eeff] text-[#0b1c30] rounded-lg text-[13px] font-medium flex items-center gap-1.5 shadow-2xs border border-[#dce9ff] transition-colors"
+                            >
+                              <span className="material-symbols-outlined text-[16px]">edit_note</span>
+                              <span>Modify Details</span>
+                            </button>
+                          )}
+                        </>
                       )}
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => onCancelBooking(booking)}
-                      className="px-3.5 py-1.5 bg-white hover:bg-[#ffdad6] text-[#ba1a1a] rounded-lg text-[13px] font-medium flex items-center gap-1.5 border border-[#ffdad6] transition-colors shadow-2xs"
-                    >
-                      <span className="material-symbols-outlined text-[18px]">cancel</span>
-                      <span>Cancel Booking</span>
-                    </button>
+                    {/* Cancel action or Lock indicator */}
+                    {isMine ? (
+                      <button
+                        type="button"
+                        onClick={() => onCancelBooking(booking)}
+                        className="px-3.5 py-1.5 bg-white hover:bg-[#ffdad6] text-[#ba1a1a] rounded-lg text-[13px] font-medium flex items-center gap-1.5 border border-[#ffdad6] transition-colors shadow-2xs"
+                      >
+                        <span className="material-symbols-outlined text-[18px]">cancel</span>
+                        <span>Cancel Booking</span>
+                      </button>
+                    ) : (
+                      <div className="flex items-center gap-1 px-3 py-1.5 bg-slate-100 rounded-lg text-xs text-slate-500 border border-slate-200 font-medium">
+                        <span className="material-symbols-outlined text-[15px]">lock</span>
+                        <span>Booked by {booking.bookedBy.split(' ')[0]}</span>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -539,10 +687,10 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                 search_off
               </span>
               <h4 className="font-['Plus_Jakarta_Sans'] text-lg font-bold text-[#0b1c30]">
-                No reservations match your filter
+                No bookings match your current filter
               </h4>
               <p className="text-sm text-[#45464d] max-w-sm">
-                Try resetting your room filter or checking different keywords.
+                Try clearing search terms, changing room selection, or switching the view tab to "All Bookings".
               </p>
               <div className="flex items-center gap-2 mt-2">
                 <button
@@ -550,17 +698,19 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                   onClick={() => {
                     setSearchQuery('');
                     setSelectedRoomFilter('all');
+                    setSelectedDeptFilter('all');
+                    setScopeFilter('all');
                   }}
                   className="px-4 py-2 bg-[#e5eeff] hover:bg-[#dce9ff] text-[#0b1c30] rounded-lg text-[13px] font-medium transition-colors"
                 >
-                  Clear Filters
+                  Reset Filters
                 </button>
                 <button
                   type="button"
                   onClick={onOpenNewReservation}
                   className="px-4 py-2 bg-[#000000] text-white rounded-lg text-[13px] font-semibold hover:bg-[#131b2e] transition-colors"
                 >
-                  + Create New Reservation
+                  + Book New Room
                 </button>
               </div>
             </div>
@@ -570,13 +720,13 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
           <div className="flex flex-col gap-3.5 mt-4">
             <div className="flex items-center justify-between">
               <h2 className="font-['Plus_Jakarta_Sans'] text-xl font-bold text-[#0b1c30] flex items-center gap-2">
-                <span>Historical Log & Completed Sessions</span>
+                <span>Meeting History & Completed Sessions</span>
                 <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#e5eeff] text-[#0b1c30]">
                   {historical.length}
                 </span>
               </h2>
               <span className="text-[11px] text-[#45464d]">
-                Archived 30 days
+                30-Day Archive
               </span>
             </div>
 
@@ -586,11 +736,11 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                   <thead className="bg-[#eff4ff] text-[#45464d] text-[11px] uppercase tracking-wider font-semibold border-b border-[#dce9ff]">
                     <tr>
                       <th className="py-2.5 px-4">Date & Time</th>
-                      <th className="py-2.5 px-4">Room Venue</th>
+                      <th className="py-2.5 px-4">Room</th>
                       <th className="py-2.5 px-4">Meeting Purpose</th>
                       <th className="py-2.5 px-4">Duration</th>
                       <th className="py-2.5 px-4">Status</th>
-                      <th className="py-2.5 px-4 text-right">Actions</th>
+                      <th className="py-2.5 px-4 text-right">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[#e2e8f0]/60 text-[#0b1c30]">
@@ -630,7 +780,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                             type="button"
                             onClick={() => onRebookHistorical(item)}
                             className="p-1.5 rounded-lg bg-[#e5eeff] hover:bg-[#dce9ff] text-[#0b1c30] transition-colors"
-                            title="Re-book session"
+                            title="Re-book this session"
                           >
                             <span className="material-symbols-outlined text-[18px]">replay</span>
                           </button>
@@ -649,11 +799,11 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
           <div className="bg-white p-6 rounded-xl shadow-sm border border-[#e2e8f0]/80 flex flex-col gap-4">
             <div className="flex items-center justify-between">
               <span className="text-[11px] uppercase font-bold text-[#45464d] tracking-wider">
-                Room Matrix Quick Guide
+                Room Availability Status Today
               </span>
               <span 
                 className="material-symbols-outlined text-[#45464d] text-[18px] cursor-help"
-                title="Live snapshot of room availability across corporate wings"
+                title="Current meeting room status"
               >
                 help_outline
               </span>
@@ -674,7 +824,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                   </div>
                 </div>
                 <span className="text-[11px] text-[#006a61] font-bold">
-                  1 Available Slot
+                  Available
                 </span>
               </div>
 
@@ -691,8 +841,8 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
                     </span>
                   </div>
                 </div>
-                <span className="text-[11px] text-[#45464d] font-medium">
-                  Fully Booked Today
+                <span className="text-[11px] text-[#4f46e5] font-semibold">
+                  Executive Session
                 </span>
               </div>
             </div>
@@ -702,7 +852,7 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
               onClick={onNavigateToMatrix}
               className="w-full py-2.5 bg-[#e5eeff] text-[#0b1c30] hover:bg-[#dce9ff] rounded-lg text-[13px] font-semibold text-center transition-colors shadow-2xs"
             >
-              View Live Availability Matrix
+              Open Room Availability Matrix
             </button>
           </div>
 
@@ -710,10 +860,10 @@ export const MyBookingsView: React.FC<MyBookingsViewProps> = ({
           <div className="bg-[#eff4ff] p-5 rounded-xl border border-[#dce9ff] flex flex-col gap-2 text-[12px] text-[#45464d]">
             <div className="flex items-center gap-2 text-[#006a61] font-semibold">
               <span className="material-symbols-outlined text-[18px]">verified_user</span>
-              <span>Autonomous Check-in Active</span>
+              <span>Overlapping Booking Prevention System</span>
             </div>
             <p className="leading-relaxed">
-              Tempahan anda akan diiktiraf secara automatik pada pad sesentuh pintu masuk di Level 3, Anjung Riong. Hubungi Fasiliti Bangunan untuk sebarang susunan katering.
+              The GHR workspace system automatically prevents and rejects overlapping bookings for the same room and time slot to guarantee conflict-free scheduling across all departments.
             </p>
           </div>
         </div>

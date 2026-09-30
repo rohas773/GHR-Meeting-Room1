@@ -29,7 +29,7 @@ export const LinksModal: React.FC<LinksModalProps> = ({
 
   const handleCopy = (url: string, title: string) => {
     navigator.clipboard?.writeText(url);
-    onToast(`Pautan ${title} disalin ke papan klip!`);
+    onToast(`Link ${title} copied to clipboard!`);
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -44,7 +44,7 @@ export const LinksModal: React.FC<LinksModalProps> = ({
         title: newTitle.trim(),
         url: newUrl.trim(),
         category: newCategory,
-        description: newDesc.trim() || 'Pautan sistem korporat GHR Workspaces',
+        description: newDesc.trim() || 'GHR Workspaces corporate system link',
         isCurrent: false,
         createdAt: new Date().toISOString()
       };
@@ -53,10 +53,10 @@ export const LinksModal: React.FC<LinksModalProps> = ({
       setNewUrl('');
       setNewDesc('');
       setShowAddForm(false);
-      onToast('Pautan baharu berjaya disimpan ke Firebase!');
+      onToast('New link saved to Firebase!');
     } catch (err) {
       console.error('Error saving link:', err);
-      onToast('Gagal menyimpan pautan ke Firebase.');
+      onToast('Failed to save link to Firebase.');
     } finally {
       setIsSubmitting(false);
     }
@@ -77,10 +77,10 @@ export const LinksModal: React.FC<LinksModalProps> = ({
             </div>
             <div className="flex flex-col">
               <h3 className="font-['Plus_Jakarta_Sans'] text-lg font-bold text-[#0b1c30]">
-                Pengurusan Pautan Firebase (System Links)
+                Firebase System Links Manager
               </h3>
               <span className="text-[12px] text-[#45464d]">
-                Semua pautan sistem semasa & aplikasi disimpan kekal dalam Cloud Firestore
+                All active system & application links stored persistently in Cloud Firestore
               </span>
             </div>
           </div>
@@ -98,7 +98,7 @@ export const LinksModal: React.FC<LinksModalProps> = ({
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-[#006a61] animate-pulse"></span>
             <span className="text-xs text-[#0b1c30] font-semibold">
-              Koleksi: <span className="font-mono text-[#006a61]">/system_links</span> ({links.length} Disimpan)
+              Collection: <span className="font-mono text-[#006a61]">/system_links</span> ({links.length} Saved)
             </span>
           </div>
           <button
@@ -109,7 +109,7 @@ export const LinksModal: React.FC<LinksModalProps> = ({
             <span className="material-symbols-outlined text-[14px]">
               {showAddForm ? 'close' : 'add'}
             </span>
-            <span>{showAddForm ? 'Tutup Borang' : '+ Simpan Pautan Baharu'}</span>
+            <span>{showAddForm ? 'Close Form' : '+ Add New Link'}</span>
           </button>
         </div>
 
@@ -117,40 +117,40 @@ export const LinksModal: React.FC<LinksModalProps> = ({
         {showAddForm && (
           <form onSubmit={handleCreate} className="p-4 bg-[#f8f9ff] rounded-xl border border-[#dce9ff] flex flex-col gap-3">
             <span className="text-xs font-bold text-[#0b1c30] uppercase tracking-wider">
-              Borang Tambah Pautan ke Firebase
+              Add Link to Firebase
             </span>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-[#0b1c30]">Tajuk Pautan (Title)</label>
+                <label className="text-xs font-semibold text-[#0b1c30]">Link Title</label>
                 <input
                   type="text"
                   required
                   value={newTitle}
                   onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="cth: Link Bilik Mesyuarat / App URL"
+                  placeholder="e.g. Meeting Room Link / App URL"
                   className="px-3 py-2 bg-white border border-[#dce9ff] rounded-lg text-xs text-[#0b1c30] focus:outline-none focus:border-[#006a61]"
                 />
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-semibold text-[#0b1c30]">Kategori (Category)</label>
+                <label className="text-xs font-semibold text-[#0b1c30]">Category</label>
                 <select
                   value={newCategory}
                   onChange={(e) => setNewCategory(e.target.value as any)}
                   className="px-3 py-2 bg-white border border-[#dce9ff] rounded-lg text-xs text-[#0b1c30] focus:outline-none"
                 >
-                  <option value="App">App (Aplikasi)</option>
-                  <option value="Shared">Shared (Pratonton Kongsi)</option>
-                  <option value="Calendar">Calendar (Kalendar / Feed)</option>
+                  <option value="App">App (Application)</option>
+                  <option value="Shared">Shared (Preview Link)</option>
+                  <option value="Calendar">Calendar (Calendar / Feed)</option>
                   <option value="Portal">Portal (Intranet)</option>
-                  <option value="Resource">Resource (Sumber / Dokumen)</option>
+                  <option value="Resource">Resource (Documentation)</option>
                 </select>
               </div>
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-[#0b1c30]">URL Pautan (https://...)</label>
+              <label className="text-xs font-semibold text-[#0b1c30]">URL Link (https://...)</label>
               <input
                 type="url"
                 required
@@ -162,12 +162,12 @@ export const LinksModal: React.FC<LinksModalProps> = ({
             </div>
 
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-[#0b1c30]">Penerangan Ringkas (Description)</label>
+              <label className="text-xs font-semibold text-[#0b1c30]">Description</label>
               <input
                 type="text"
                 value={newDesc}
                 onChange={(e) => setNewDesc(e.target.value)}
-                placeholder="Penerangan kegunaan pautan ini..."
+                placeholder="Description of this link..."
                 className="px-3 py-2 bg-white border border-[#dce9ff] rounded-lg text-xs text-[#0b1c30] focus:outline-none focus:border-[#006a61]"
               />
             </div>
@@ -178,7 +178,7 @@ export const LinksModal: React.FC<LinksModalProps> = ({
                 onClick={() => setShowAddForm(false)}
                 className="px-3 py-1.5 text-xs text-[#45464d] hover:bg-[#eff4ff] rounded-lg transition-colors"
               >
-                Batal
+                Cancel
               </button>
               <button
                 type="submit"
@@ -186,7 +186,7 @@ export const LinksModal: React.FC<LinksModalProps> = ({
                 className="px-4 py-1.5 bg-[#000000] text-white hover:bg-[#131b2e] rounded-lg text-xs font-semibold transition-colors flex items-center gap-1 shadow-sm disabled:opacity-50"
               >
                 <span className="material-symbols-outlined text-[14px]">save</span>
-                <span>{isSubmitting ? 'Menyimpan...' : 'Simpan ke Firestore'}</span>
+                <span>{isSubmitting ? 'Saving...' : 'Save to Firestore'}</span>
               </button>
             </div>
           </form>
@@ -206,7 +206,7 @@ export const LinksModal: React.FC<LinksModalProps> = ({
                   </span>
                   {item.isCurrent && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#86f2e4] text-[#006f66] uppercase tracking-wider">
-                      Aktif Semasa
+                      Currently Active
                     </span>
                   )}
                   <span className="px-2 py-0.2 rounded text-[10px] font-semibold bg-[#eff4ff] text-[#45464d] border border-[#dce9ff]">
@@ -228,27 +228,27 @@ export const LinksModal: React.FC<LinksModalProps> = ({
                   type="button"
                   onClick={() => handleCopy(item.url, item.title)}
                   className="px-2.5 py-1.5 bg-[#eff4ff] hover:bg-[#dce9ff] text-[#0b1c30] rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                  title="Salin Pautan"
+                  title="Copy Link"
                 >
                   <span className="material-symbols-outlined text-[14px]">content_copy</span>
-                  <span>Salin</span>
+                  <span>Copy</span>
                 </button>
                 <a
                   href={item.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="px-2.5 py-1.5 bg-white hover:bg-[#eff4ff] text-[#006a61] border border-[#dce9ff] rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
-                  title="Buka Pautan"
+                  title="Open Link"
                 >
                   <span className="material-symbols-outlined text-[14px]">open_in_new</span>
-                  <span>Buka</span>
+                  <span>Open</span>
                 </a>
                 {!item.isCurrent && (
                   <button
                     type="button"
                     onClick={() => onDeleteLink(item.id)}
                     className="p-1.5 text-[#45464d] hover:text-[#ba1a1a] hover:bg-[#ffdad6]/40 rounded-lg transition-colors"
-                    title="Padam Pautan"
+                    title="Delete Link"
                   >
                     <span className="material-symbols-outlined text-[16px]">delete</span>
                   </button>
@@ -260,13 +260,13 @@ export const LinksModal: React.FC<LinksModalProps> = ({
 
         {/* Footer */}
         <div className="flex items-center justify-between pt-2 border-t border-[#e2e8f0] text-[11px] text-[#45464d]">
-          <span>Semua link disegerakkan secara langsung dengan Firebase Firestore.</span>
+          <span>All links are synchronized in real-time with Firebase Firestore.</span>
           <button
             type="button"
             onClick={onClose}
             className="px-4 py-1.5 bg-[#000000] text-white rounded-lg text-xs font-semibold hover:bg-[#131b2e] transition-colors"
           >
-            Selesai
+            Done
           </button>
         </div>
       </div>
